@@ -1,0 +1,130 @@
+@persist [Engines__]:array
+@persist [LGearbox__, RGearbox__, CVTGearbox__]:entity
+@persist [ClutchAccum__, BrakeForce__, IdleThrottle__]:number
+
+#[ Uncomment to enable debugging.
+@outputs [Engines__]:array
+@outputs [LGearbox__, RGearbox__, CVTGearbox__]:entity
+@outputs [ClutchAccum__, BrakeForce__, IdleThrottle__]:number
+#]#
+
+# This is required.
+#include "libraries/tank/tank_core"
+
+# Events
+function event_inputUpdate(Callbacks:array)
+{
+	if(InputData__:exists("source"))
+	{
+		local POD = InputData__["source", wirelink]
+		InputData__["W", number] = POD["W", number]
+		InputData__["A", number] = POD["A", number]
+		InputData__["S", number] = POD["S", number]
+		InputData__["D", number] = POD["D", number]
+		InputData__["Space", number] = POD["Space", number]
+		InputData__["speed", number] = Base__:vel():length()
+	}	
+}
+function event_mobilityUpdate(Callbacks:array)
+{
+	local W = InputData__["W", number]
+	local A = InputData__["A", number]
+	local S = InputData__["S", number]
+	local D = InputData__["D", number]
+	local Space = InputData__["Space", number]
+	
+	local LGearbox = LGearbox__
+	local RGearbox = RGearbox__
+	local Speed = InputData__["speed", number]
+	
+	LGearbox:acfClutchLeft(0)
+	LGearbox:acfClutchRight(0)
+	RGearbox:acfClutchLeft(0)
+	RGearbox:acfClutchRight(0)
+
+	#[
+	if(!A & !D)
+	{
+		ClutchAccum__ = 0
+	} elseif((A & $A) | (D & $D))
+	{
+		ClutchAccum__ = 1
+	} else {
+
+		ClutchAccum__ = clamp(ClutchAccum__-0.016*(eventGetInterval("event_mobilityUpdate")/50), 0, 1)
+	} #]#
+	ClutchAccum__ = 0
+
+	local LGear = (W & !A & !D ? 1 : (S & !A & !D ? 2 : (D ? 1 : (A ? 2 : 0))))
+	local RGear = (W & !A & !D ? 1 : (S & !A & !D ? 2 : (D ? 2 : (A ? 1 : 0))))
+
+	Throttle = (W | S ? 100 : (A | D ? 100 :  IdleThrottle__))
+	for(I=1, Engines__:count())
+	{
+		Engines__[I, entity]:acfThrottle(Throttle)
+	}
+
+	LGearbox:acfShift(LGear)
+	RGearbox:acfShift(RGear)
+
+	LGearbox:acfClutchLeft((A | D ? 100 : 0))
+	RGearbox:acfClutchRight((A | D ? 100 : 0))
+	
+	LGearbox:acfBrake(0)
+	RGearbox:acfBrake(0)
+	
+	if(A | D)
+	{
+		if(Space)
+		{    
+			LGearbox:acfClutchRight(ClutchAccum__)
+			RGearbox:acfClutchLeft(ClutchAccum__)
+		} else {
+			if(S)
+			{
+				LGearbox:acfClutchRight(A)
+				LGearbox:acfBrakeRight((A ? BrakeForce__*3 : 0))
+				RGearbox:acfClutchLeft(D)
+				RGearbox:acfBrakeLeft((D ? BrakeForce__*3 : 0))
+			} else {
+				LGearbox:acfClutchRight(A)
+				LGearbox:acfBrakeRight((A ? BrakeForce__*3 : 0))
+				RGearbox:acfClutchLeft(D)
+				RGearbox:acfBrakeLeft((D ? BrakeForce__*3 : 0))
+			}
+		}
+	} elseif(!W & !S) {
+		LGearbox:acfBrake(BrakeForce__*1.5)
+		RGearbox:acfBrake(BrakeForce__*1.5)
+	}
+}
+function event_tankMove(Callbacks:array)
+{
+	local LinearVelocity = Base__:vel()
+	if(LinearVelocity:length() > 0)
+	{
+		for(I=1, Callbacks:count())
+		{
+			local StrCallback = Callbacks[I, string]
+			StrCallback(LinearVelocity, Base__:angVel())
+		}
+	}
+}
+
+# Getters and setters
+function tanklib_setIdleThrottle(IdleThrottle:number)
+{
+	IdleThrottle__ = IdleThrottle
+}
+function tanklib_setEngineActive(ActiveState:number)
+{
+	for(I=1, Engines__:count())
+	{
+		Engines__[I, entity]:acfActive(ActiveState)
+	}
+}
+function tanklib_setInputSource(Wirelink:wirelink)
+{
+	if(!Wirelink:entity():isValid()) { return }
+	InputData__["source", wirelink] = Wirelink
+}

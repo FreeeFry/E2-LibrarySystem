@@ -1,0 +1,21 @@
+
+# Required libraries
+#include "libraries/event_system/event_core"
+
+# Functions
+function filelib_Loadfile(Filename:string)
+{
+	runOnFile(1)
+	fileLoad(Filename)
+}
+
+# Events
+function event_fileUploaded(Callbacks:array)
+{
+	for(I=1, Callbacks:count())
+	{
+		local StrCallback = Callbacks[I, string]
+		StrCallback(fileName(), fileLoaded())
+	}
+}
+registerManualEvent("event_fileUploaded")

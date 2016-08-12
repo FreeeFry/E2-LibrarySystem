@@ -1,0 +1,31 @@
+@persist [HUDData__]:table
+
+#[ Uncomment to enable debugging
+@outputs [HUDData__]:table
+#]#
+
+# EVENTS BLOCK
+function event_hudUpdate(Callbacks:array)
+{
+	for(I=1, Callbacks:count())
+	{
+		local Callback = Callbacks[I, string]
+		Callback(HUDData__["egp", wirelink])
+	}
+}
+# END EVENTS BLOCK
+
+# CORE FUNCTIONS BLOCK
+function hudlib_Init(EGPWirelink:wirelink, UserInitFunc:string) # Default init function, calls the passed init function string with no parameters.
+{
+	if(!EGPWirelink:entity():isValid()) { return }
+	HUDData__["egp", wirelink] = EGPWirelink
+	UserInitFunc(EGPWirelink)
+}
+function hudlib_Init(EGPWirelink:wirelink, UserInitFunc:string, DataTable:table) # Extended init function, calls the passed init function string with the passed data table.
+{
+	if(!EGPWirelink:entity():isValid()) { return }
+	HUDData__["egp", wirelink] = EGPWirelink
+	UserInitFunc(EGPWirelink, DataTable)
+}
+# CORE END FUNCTIONS BLOCK

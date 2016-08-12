@@ -1,0 +1,60 @@
+@persist [RegisteredSources__]:table
+
+#[ Uncomment to enable debugging.
+@outputs [RegisteredSources__]:table
+#]#
+
+# Event core needed.
+#include "libraries/event_system/event_core"
+
+# Use http://wiki.garrysmod.com/page/Enums/KEY for reference for the Keys parameter.
+function inputRegisterSource(SourceIdentifier:string, Source:entity)
+{
+	if(Source:isValid() && Source:isPlayer())
+	{
+		local SourceData = table(
+			"src" = Source
+		)
+		RegisteredSources__[SourceIdentifier, table] = SourceData
+		runOnKeys(Source, 1)
+		registerManualEvent("event_playerInput")
+	}
+}
+function inputUnregisterSource(SourceIdentifier:string)
+{
+	if(RegisteredSources__:exists(SourceIdentifier))
+	{
+		local MultiSource = 0
+		foreach(Identifier, SourceData:table = RegisteredSources__)
+		{
+			if(Identifier != SourceIdentifier && SourceData["src", entity] == RegisteredSources__[SourceIdentifier, table]["src", entity]) { MultiSource = 1, break }
+		}
+		if(!MultiSource) { runOnKeys(RegisteredSources__[SourceIdentifier, table]["src", entity], 0) }
+		RegisteredSources__:remove(SourceIdentifier)
+	}
+	if(RegisteredSources__:count() < 1) { unregisterEvent("event_playerInput") }
+}
+function event_playerInput(Callbacks:array) # Only register callbacks to this event, it's called internally manually.
+{
+	foreach(ID, SourceData:table = RegisteredSources__)
+	{
+		local Player = SourceData["src", entity]
+		if(keyClk(Player))
+		{
+			#local Keys = SourceData["keys", table]
+			local Key = keyClkPressed()
+			for(I=1, Callbacks:count())
+			{
+				local Callback = Callbacks[I, string]
+				Callback(Player, Key, Player:keyPressed(Key)) # Last parameter is the current state of the key.
+			}
+			break
+		}
+	}
+}
+
+# Getters and setters
+function table inputGetStates(SourceIdentifier:string)
+{
+	return((RegisteredSources__:exists(SourceIdentifier) ? RegisteredSources__[SourceIdentifier, table] : table()))
+}

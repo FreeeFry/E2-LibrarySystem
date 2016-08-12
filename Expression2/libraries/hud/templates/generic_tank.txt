@@ -1,0 +1,116 @@
+function myHUDInit(EGP:wirelink, DataTable:table) # Create the hud elements in here
+{
+    local Player = DataTable["player", entity]
+       
+    local PlyRes = egpScrSize(Player)
+       
+    local Scale = 1
+    EGP:egpClear()
+    EGP:egpBox(1, PlyRes/2, vec2(10,10)*Scale) #center slave
+    EGP:egpAlpha(1,0)
+    EGP:egpBox(2, vec2(-190,0)*Scale, vec2(10,10)) #left slave
+    EGP:egpParent(2, 1)
+    EGP:egpAlpha(2,0)
+    EGP:egpBox(3, vec2(190,0)*Scale, vec2(10,10)) #rightslave
+    EGP:egpParent(3, 1)
+    EGP:egpAlpha(3,0)
+   
+    I=4
+    ### AIM INDICATOR #######
+    EGP:egpBox(I, vec2(30,-30)*Scale, vec2(20,3)*Scale)        I+=1 ### #4
+    EGP:egpBox(I, vec2(67,-20)*Scale, vec2(60,3)*Scale)             ###  top right indicator element
+    EGP:egpAngle(I, 20)                                        I+=1 ###
+   
+    EGP:egpBox(I, vec2(-30,-30)*Scale, vec2(20,3)*Scale)       I+=1 ###
+    EGP:egpBox(I, vec2(-67,-20)*Scale, vec2(60,3)*Scale)            ###  top left indicator element
+    EGP:egpAngle(I, 340)                                       I+=1 ###
+   
+    EGP:egpBox(I, vec2(30,31)*Scale, vec2(20,3)*Scale)         I+=1 ###
+    EGP:egpBox(I, vec2(67,21)*Scale, vec2(60,3)*Scale)              ###  bottom right indicator element
+    EGP:egpAngle(I, -20)                                       I+=1 ###
+   
+    EGP:egpBox(I, vec2(-30,31)*Scale, vec2(20,3)*Scale)        I+=1 ###
+    EGP:egpBox(I, vec2(-67,21)*Scale, vec2(60,3)*Scale)             ### bottom left indicator element
+    EGP:egpAngle(I, -340)                                      I+=1 ### #11
+    #########################
+   
+    ### CROSSHAIR ###
+    EGP:egpCircleOutline(I, vec2()*Scale, vec2(15,15)*Scale)   I+=1 #12
+    EGP:egpLine(I, vec2(-30,0)*Scale, vec2(-7,0)*Scale)        I+=1 #13
+    EGP:egpLine(I, vec2(30,0)*Scale, vec2(7,0)*Scale)          I+=1 #14
+    EGP:egpLine(I, vec2(0,-30)*Scale, vec2(0,-7)*Scale)        I+=1 #15
+    EGP:egpLine(I, vec2(0,30)*Scale, vec2(0,7)*Scale)          I+=1 #16
+    #########################
+   
+    ### CANNON AMMO INDICATOR ###
+    EGP:egpText(I, "< CANNON >", vec2(0,-85)*Scale)
+    EGP:egpAlign(I,1)
+    EGP:egpSize(I, 20*Scale)
+    EGP:egpParent(I,2)                                         I+=1 #17
+   
+    EGP:egpBoxOutline(50, vec2(0,-45)*Scale, vec2(60,20)*Scale)
+    EGP:egpAlign(50,1)
+    EGP:egpBoxOutline(52, vec2(0,-15)*Scale, vec2(60,20)*Scale)
+    EGP:egpAlign(52,1)
+    EGP:egpBoxOutline(54, vec2(0,15)*Scale, vec2(60,20)*Scale)
+    EGP:egpAlign(54,1)
+    EGP:egpBoxOutline(56, vec2(0,45)*Scale, vec2(60,20)*Scale)
+    EGP:egpAlign(56,1)
+   
+    EGP:egpText(51, "APHE", vec2(0,-56)*Scale)
+    EGP:egpAlign(51,1)
+    EGP:egpSize(51, 20*Scale)
+   
+    EGP:egpText(53, "HE", vec2(0,-26)*Scale)
+    EGP:egpAlign(53,1)
+    EGP:egpSize(53, 20*Scale)
+   
+    EGP:egpText(55, "AP", vec2(0,4)*Scale)
+    EGP:egpAlign(55,1)
+    EGP:egpSize(55, 20*Scale)
+   
+    EGP:egpText(57, "FL", vec2(0,34)*Scale)
+    EGP:egpAlign(57,1)
+    EGP:egpSize(57, 20*Scale)
+   
+    #########################
+   
+    ### COAX AMMO INDICATOR ###
+    EGP:egpText(I, "< COAX >", vec2(0,-85)*Scale)
+    EGP:egpAlign(I,1)
+    EGP:egpSize(I, 20*Scale)
+    EGP:egpParent(I,3)
+   
+    EGP:egpBoxOutline(60, vec2(0,-45)*Scale, vec2(60,20)*Scale)
+    EGP:egpAlign(60,1)
+   
+    EGP:egpText(61, "AP", vec2(0,-56)*Scale)
+    EGP:egpAlign(61,1)
+    EGP:egpSize(61, 20*Scale)
+    #########################
+    
+    EGP:egp3DTracker(100, vec())
+    EGP:egpCircle(99, vec2(), vec2(5))
+    EGP:egpColor(99, vec(255, 0, 0))
+    
+    EGP:egpParent(99, 100)
+    EGP:egpParent(100, holoEntity(1000))
+    
+    for(Index1=4, 16) #CROSSHAIR PARENTING
+    {
+        EGP:egpParent(Index1,1)
+        EGP:egpColor(Index1,vec())
+    }
+    
+    for(Index2=50, 57) #MAIN AMMO SECTION PARENTING)
+    {
+        EGP:egpParent(Index2,2)
+        EGP:egpColor(Index2,vec())
+    }
+    
+    for(Index3=60, 61)
+    {
+        EGP:egpParent(Index3,3)
+        EGP:egpColor(Index3,vec())
+    }
+}

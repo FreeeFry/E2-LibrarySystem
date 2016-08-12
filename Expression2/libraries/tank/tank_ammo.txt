@@ -1,0 +1,77 @@
+@persist [GunReloading__]:number
+
+# Required.
+#include "libraries/tank/tank_core"
+
+
+# Events
+function event_gunReload(Callbacks:array)
+{
+	#local GunReloading = Gun__:acfAmmoCount() > 0 && !Gun__:acfReady() # Not sure about this one, doesn't play well with autocannons and guns with magazines...
+	#local GunReloading = (Gun__:acfMagSize() > 1 ? Gun__:acfMagRounds() == Gun__:acfMagSize() && !Gun__:acfReady() : Gun__:acfAmmoCount() > 0 && !Gun__:acfReady()) # Possible contender to detect both types(magazine-based and not, not sure if this is needed though....)
+	#local GunReloading = Gun__:acfMagRounds() == Gun__:acfMagSize() && !Gun__:acfReady() # This one works well with autocannons and other magazine-based weaponry... need to find a quick way to diff between the two perhaps.
+	local GunReloading = (Gun__:acfMagSize() == 1 && !Gun__:acfReady() ? 1 : (Gun__:acfMagRounds() == Gun__:acfMagSize() && !Gun__:acfReady() ? 1 : 0))
+	
+	if(GunReloading && !GunReloading__)
+	{
+		for(I=1, Callbacks:count())
+		{
+			local StrCallback = Callbacks[I, string]
+			StrCallback(1)
+		}
+		GunReloading__ = 1
+	}elseif(!GunReloading && GunReloading__)
+	{
+		for(I=1, Callbacks:count())
+		{
+			local StrCallback = Callbacks[I, string]
+			StrCallback(0)
+		}
+		GunReloading__ = 0
+	}
+}
+function event_tanklibUnload__(Callbacks:array) # Internal event,  don't register this, nor register callbacks to it. It's only used internally.
+{
+	Gun__:acfUnload()
+}
+
+# Getters and setters
+function table tanklib_getLinkedAmmo(Weapon:entity)
+{
+	local GunLinks = Weapon:acfLinks()
+	local AmmoTable = table()
+	for(I=1, GunLinks:count())
+	{
+		local LinkedEnt = GunLinks[I, entity]
+		if(LinkedEnt:acfIsAmmo())
+		{
+			local AmmoType = LinkedEnt:acfAmmoType()
+			if(!AmmoTable:exists(AmmoType))
+			{
+				AmmoTable[AmmoType, table] = table()
+				AmmoTable[AmmoType, table]["total", number] = 0
+			}
+			AmmoTable[AmmoType, table]:pushEntity(LinkedEnt)
+			AmmoTable[AmmoType, table]["total", number] = AmmoTable[AmmoType, table]["total", number] + LinkedEnt:acfRounds()
+		}
+	}
+	return AmmoTable
+}
+function number tanklib_loadAmmo(AmmoType:string, AmmoTable:table) # Returns weather or not the load was attempted (if ammo exists in AmmoTable).
+{
+	registerManualEvent("event_tanklibUnload__")
+	if(AmmoTable:exists(AmmoType)) # No need to do anything if we don't know any ammoboxes for this ammotype.
+	{
+		foreach(AmmoType_, AmmoBoxesT:table = AmmoTable)
+		{
+			local AmmoBoxes = AmmoBoxesT:toArray() # Discard non-array elements.
+			for(I=1, AmmoBoxes:count())
+			{
+				AmmoBoxes[I, entity]:acfActive((AmmoType == AmmoType_ ? 1 : 0))
+			}
+		}
+		eventManualTrigger("event_tanklibUnload__", 100)
+		return 1
+	}
+	return 0
+}

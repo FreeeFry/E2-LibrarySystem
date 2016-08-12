@@ -1,0 +1,41 @@
+# Todo:
+# Expand on this to support several vehicles at once, and not be dependent on a pod controller.
+# Pod controller dependency removed, but multi-vehicle support is not in yet.
+
+@persist [SourceVehicle__]:entity
+@persist [PreviousDriver__]:entity
+
+#[ Uncomment to enable debugging.
+@outputs [SourceVehicle__]:entity
+@outputs [PreviousDriver__]:entity
+#]#
+
+# Core event system functions.
+#include "libraries/event_system/event_core"
+
+# Events
+function event_driverEnterVehicle(Callbacks:array)# Event detects whenever a player enters the designated pod.
+{
+	if(!SourceVehicle__:isValid()) { return } # No need to run code if we're not setup yet.
+	local Driver = SourceVehicle__:driver()
+	
+	if(Driver != PreviousDriver__) # This will also trigger when the current driver exits the vehicle(useful?).
+	{
+		for(I=1, Callbacks:count())
+		{
+			local StrCallback = Callbacks[I, string]
+			StrCallback(SourceVehicle__, Driver, PreviousDriver__)
+		}
+	}
+	PreviousDriver__ = Driver
+}
+
+# Getters and setters
+function vehicleSetSource(SourceVehicle:entity)
+{
+	SourceVehicle__ = SourceVehicle
+}
+function entity vehicleGetDriver()
+{
+	return SourceVehicle__:driver()
+}

@@ -1,0 +1,58 @@
+@persist [ChatCommands__]:table
+
+#[ Uncomment to enable debugging.
+@outputs [ChatCommands__]:table
+#]#
+
+# Required.
+#include "libraries/event_system/event_core"
+
+# Events
+
+function event_playerChat(Callbacks:array)
+{
+	local Message = lastSaid()
+	local Player = lastSpoke()
+	for(I=1, Callbacks:count())
+	{
+		local Callback = Callbacks[I, string]
+		Callback(Player, Message)
+	}
+}
+
+
+# Internal functions( do not use ).
+function execChatCommand__(Player:entity, Message:string) # Internal function, do not use.
+{
+	local ArrMessage = Message:explode(" ")
+	local Command = ArrMessage[1, string]
+	ArrMessage:remove(1)
+	
+	if(ChatCommands__:exists(Command))
+	{
+		ChatCommands__[Command, string](Player, ArrMessage)
+	}
+}
+
+# Functions
+function registerChatCommand(StrCommand:string, StrUserFunction:string) # StrUserFunction will passed Entity, Array
+{
+	registerManualEvent("event_playerChat")
+	registerCallback("event_playerChat", "execChatCommand__")
+	
+	ChatCommands__[StrCommand, string] = StrUserFunction
+	runOnChat(1)
+}
+function unregisterChatCommand(StrCommand:string)
+{
+	if(ChatCommands__:exists(StrCommand))
+	{
+		ChatCommands__:remove(StrCommand)
+		if(ChatCommands__:count() == 0)
+		{
+			unregisterCallback("event_playerChat", "execChatCommand__")
+			unregisterEvent("event_playerChat")
+			runOnChat(0)
+		}
+	}
+}

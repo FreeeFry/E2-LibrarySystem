@@ -1,0 +1,98 @@
+@persist [AimCurrent__]:vector
+@persist [GunInertia__, AimSpeed__]:angle
+@persist [AimLimits__, AimExcludes__]:array
+
+# Required outputs, or maybe not.
+#@outputs [CamPos]:vector
+#@outputs [CamParent]:entity
+
+#[ Uncomment to enable debugging
+@outputs [AimCurrent__]:vector
+@outputs [GunInertia__, AimSpeed__]:angle
+@outputs [AimLimits__, AimExcludes__, Engines__]:array
+#]#
+
+# This is required.
+#include "libraries/tank/tank_core"
+
+
+# Events
+function event_gunUpdate(Callbacks:array)
+{
+    Gun__:applyAngForce((Gun__:toLocal(Base__:toWorld(clamp(Base__:toLocal(Gun__:toWorld(clamp(Gun__:toLocal((AimCurrent__ - Gun__:pos()):toAngle()),-AimSpeed__, AimSpeed__))),ang(AimLimits__[1, number],-AimLimits__[3, number],-1),ang(AimLimits__[2, number],AimLimits__[3, number],1)))) * 250 - Gun__:angVel() * 30) * GunInertia__)
+}
+function event_camUpdate(Callbacks:array)
+{
+	if(CameraData__:exists("cam"))
+	{
+		local Cam = CameraData__["cam", wirelink]
+		CameraData__["eye", vector] = Cam["CamDir", vector]
+		local CalculatedPos = (CameraData__["parent", entity]:isValid() ? CameraData__["parent", entity]:toWorld(CameraData__["pos", vector]) : CameraData__["pos", vector])
+		CameraData__["eyeTrace", ranger] = rangerOffset(50000, CalculatedPos, CameraData__["eye", vector])
+		#Cam["Position", vector] = CameraData__["pos", vector]
+	}
+}
+function event_TurretMove(Callbacks:array)
+{
+	local GunAngVel = Gun__:angVel()
+	local TurretMoving = (abs(GunAngVel:pitch()) > 0 | abs(GunAngVel:yaw()) > 0 ? 1 : 0)
+	if(TurretMoving)
+	{
+		for(I=1, Callbacks:count())
+		{
+			local StrCallback = Callbacks[I, string]
+			StrCallback(GunAngVel)
+		}
+	}
+}
+
+# Getters and setters
+function ranger tanklib_getCamTrace()
+{
+	return CameraData__["eyeTrace", ranger]
+}
+function tanklib_setCameraZoom(ZoomLevel)
+{
+	CameraData__["cam", wirelink]["FOV", number] = ZoomLevel
+}
+function tanklib_setCameraPosition(CameraPosition:vector)
+{
+	CameraData__["cam", wirelink]["Position", vector] = CameraPosition
+	CameraData__["pos", vector] = (CameraData__["parent", entity]:isValid() ? CameraData__["parent", entity]:toLocal(CameraPosition) : CameraPosition)
+}
+function tanklib_setCameraParent(ParentEntity:entity)
+{
+	CameraData__["parent", entity] = ParentEntity
+	CameraData__["cam", wirelink]["Parent", entity] = ParentEntity
+}
+function tanklib_setCameraState(ActiveState)
+{
+	CameraData__["cam", wirelink]["Activated", number] = ActiveState
+}
+function tanklib_setAimInterval(Interval)
+{
+    eventSetInterval("event_tankAim", Interval)
+}
+function tanklib_setAimSpeed(Speed)
+{
+    AimSpeed__ = ang(Speed)
+}
+function tanklib_setAimLimits(Elevation, Depression, Yaw)
+{
+    AimLimits__ = array(Elevation, Depression, Yaw)
+}
+function tanklib_setExcludedAimEnts(EntsArray:array)
+{
+	rangerReset()
+	rangerPersist(1) # This is required to reduce ops.
+    AimExcludes__ = EntsArray
+	rangerFilter(AimExcludes__)
+}
+function array tanklib_getExcludedAimEnts()
+{
+    return AimExcludes__
+}
+function tanklib_setAimpos(AimPos:vector)
+{
+    AimCurrent__ = AimPos
+}

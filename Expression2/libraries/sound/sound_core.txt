@@ -1,0 +1,76 @@
+@persist [SoundsTable__]:table
+
+#[ Uncomment to enable debugging.
+@outputs [SoundsTable__]:table
+#]#
+
+# Initialization
+function sndPlay(SoundName:string, SoundPath:string, SoundDuration:number)
+{
+	if(SoundsTable__:exists(SoundName)) { return } # Sound is already registered.
+
+	SoundsTable__[SoundName, table] = table("path" = SoundPath, "loop" = (SoundDuration == 0), "end" = curtime()+SoundDuration)
+	soundPlay(SoundName, SoundDuration, SoundPath)
+}
+function sndPlayEntity(SoundName:string, SourceEntity:entity, SoundPath:string, SoundDuration:number)
+{
+	if(SoundsTable__:exists(SoundName)) { return } # Sound is already registered.
+	
+	local Loop = (SoundDuration == 0)
+	SoundsTable__[SoundName, table] = table("path" = SoundPath, "loop" = Loop, "end" = curtime()+SoundDuration)
+	SourceEntity:soundPlay(SoundName, SoundDuration, SoundPath)
+	
+	if(!Loop)
+	{
+		eventManualTrigger("event_SoundEnd", SoundDuration*1100)
+	}
+}
+
+# Events
+function event_SoundEnd(Callbacks:array) # Don't register this event, it's used internally, you're only supposed to register callbacks to it for sounds that don't loop!
+{
+	foreach(SoundName, SoundTable:table=SoundsTable__)
+	{
+		if(SoundTable["loop", number] == 0 && curtime() >= SoundTable["end", number])
+		{
+			for(I=1, Callbacks:count())
+			{
+				local StrCallback = Callbacks[I, string]
+				StrCallback(SoundName)
+			}
+			soundStop(SoundName, 0)
+			SoundsTable__:remove(SoundName)
+		}
+	}
+}
+registerManualEvent("event_SoundEnd")
+
+# Getters and setters
+function sndPitch(SoundName:string, Pitch:number)
+{
+	if(!SoundsTable__:exists(SoundName)) { return }
+	soundPitch(SoundName, Pitch)
+}
+function sndVolume(SoundName:string, Volume:number)
+{
+	if(!SoundsTable__:exists(SoundName)) { return }
+	soundVolume(SoundName, Volume)
+}
+function sndStop(SoundName:string, FadeOutTime:number)
+{
+	if(FadeOutTime > 0)
+	{
+		soundStop(SoundName, FadeOutTime)
+	} else {
+		soundStop(SoundName)
+	}
+	SoundsTable__:remove(SoundName)
+}
+function normal sndIsPlaying(SoundName:string)
+{
+	if(!SoundsTable__:exists(SoundName)) { return 0 } # Sound doesn't exist.
+	local SoundTable = SoundsTable__[SoundName, table]
+	if(!SoundTable["loop", number] && curtime() > SoundTable["end", number]) { return 0 }
+	if(SoundTable["loop", number] || curtime() < SoundTable["end", number]) { return 1 }
+	return 0
+}

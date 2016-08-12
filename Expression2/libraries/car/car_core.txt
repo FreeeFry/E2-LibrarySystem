@@ -1,0 +1,143 @@
+# These are variables shared between drive and aim modules, they need to be here to prevent errors.
+@persist [CARLIB_InputData__, CARLIB_KeyMapping__]:table
+@persist [CARLIB_Base__]:entity
+@persist [CARLIB_Engines__, CARLIB_BrakeRatio__, CARLIB_EnginePowerband__]:array
+@persist [CARLIB_Gearbox__, CARLIB_RearDiff__, CARLIB_FrontDiff__]:entity
+@persist [CARLIB_BrakeForce__, CARLIB_GearLocked__, CARLIB_ShiftSpeed__, CARLIB_CurrentGear__, CARLIB_MaxGears__, CARLIB_LastSwitch__]:number
+
+#[ Uncomment to enable debugging.
+@outputs [CARLIB_InputData__, CARLIB_KeyMapping__]:table
+@outputs [CARLIB_Base__]:entity
+@outputs [CARLIB_Engines__, CARLIB_BrakeRatio__, CARLIB_EnginePowerband__]:array
+@outputs [CARLIB_Gearbox__, CARLIB_RearDiff__, CARLIB_FrontDiff__]:entity
+@outputs [CARLIB_BrakeForce__, CARLIB_GearLocked__, CARLIB_ShiftSpeed__, CARLIB_CurrentGear__, CARLIB_MaxGears__, CARLIB_LastSwitch__]:number
+#]#
+
+# Required libraries.
+#include "libraries/event_system/event_core"
+#include "libraries/input/input_core"
+
+# Initialization 
+function carlib_Init(InitTable:table)
+{
+	# Defaults
+	CARLIB_BrakeForce__ = 4
+	CARLIB_BrakeRatio__ = array(2, 2)
+	CARLIB_GearLocked__ = 0
+	CARLIB_ShiftSpeed__ = 1
+	CARLIB_EnginePowerband__ = array(1000, 2000)
+	CARLIB_CurrentGear__ = 1
+	CARLIB_MaxGears__ = 4
+	
+	
+	# Setup phase
+    if(InitTable:exists("base")) { CARLIB_Base__ = InitTable["base", entity] }
+	if(InitTable:exists("engines"))
+	{
+		CARLIB_Engines__ = InitTable["engines", array]
+		if(InitTable:exists("powerband"))
+		{
+			CARLIB_EnginePowerband__ = InitTable["powerband", array]
+		} else {
+			CARLIB_EnginePowerband__ = array(CARLIB_Engines__[1, entity]:acfPowerbandMin(), CARLIB_Engines__[1, entity]:acfPowerbandMax())
+		}
+	}
+	if(InitTable:exists("brakeforce")) { CARLIB_BrakeForce__ = InitTable["brakeforce", number] }
+	if(InitTable:exists("brakeratio")) { CARLIB_BrakeRatio__ = array(CARLIB_BrakeForce__*clamp(InitTable["brakeratio", number], 0, 1), CARLIB_BrakeForce__*(1-clamp(InitTable["brakeratio", number], 0, 1))) }
+	if(InitTable:exists("gearbox")) { CARLIB_Gearbox__ = InitTable["gearbox", entity], CARLIB_MaxGears__ = CARLIB_Gearbox__:acfNumGears() }
+	if(InitTable:exists("rdiff")) { CARLIB_RearDiff__ = InitTable["rdiff", entity] }
+	if(InitTable:exists("fdiff")) { CARLIB_FrontDiff__ = InitTable["fdiff", entity] }
+	if(InitTable:exists("keymap")) { CARLIB_KeyMapping__ = InitTable["keymap", table] }
+	if(InitTable:exists("shiftspeed")) { CARLIB_ShiftSpeed__ = InitTable["shiftspeed", number] }
+}
+
+function carlib_DriverInput__(Driver:entity, Key:string, State:number) # Internal function, don't use.
+{
+	if(!Driver:vehicle():isValid()) { return }
+	CARLIB_InputData__[Key, number] = State
+	if(Key == CARLIB_KeyMapping__["lockgear", string] && State)
+	{
+		CARLIB_GearLocked__ = !CARLIB_GearLocked__
+	}
+}
+
+# Events
+function event_carlibUpdate(Callbacks:array)
+{
+	local Forward = CARLIB_InputData__[CARLIB_KeyMapping__["forward", string], number]
+	local Reverse = CARLIB_InputData__[CARLIB_KeyMapping__["reverse", string], number]
+	local Boost = CARLIB_InputData__[CARLIB_KeyMapping__["boost", string], number]
+	local Brake = CARLIB_InputData__[CARLIB_KeyMapping__["brake", string], number]
+	local Handbrake = CARLIB_InputData__[CARLIB_KeyMapping__["handbrake", string], number]
+	
+	local Speed = CARLIB_Base__:vel():length()
+	local RPM = CARLIB_Engines__[1, entity]:acfRPM()
+	
+	if(Reverse) { CARLIB_CurrentGear__ = CARLIB_MaxGears__ }
+	if(Forward && (CARLIB_CurrentGear__ == CARLIB_MaxGears__ || CARLIB_CurrentGear__ == 0)) { CARLIB_CurrentGear__ = 1 }
+	if(Brake || Handbrake) { CARLIB_CurrentGear__ = (Reverse ?  CARLIB_MaxGears__ : 1), CARLIB_LastSwitch__ = curtime()}
+	
+	if(!Brake && !CARLIB_GearLocked__)
+	{
+		if(Forward && RPM > CARLIB_EnginePowerband__[2, number] && CARLIB_CurrentGear__ < CARLIB_MaxGears__-1 && curtime() >= CARLIB_LastSwitch__)
+		{
+			CARLIB_CurrentGear__ += 1
+			CARLIB_LastSwitch__ = curtime()+CARLIB_ShiftSpeed__
+		}elseif(Forward && RPM < CARLIB_EnginePowerband__[1, number] && CARLIB_CurrentGear__ > 1 && curtime() >= CARLIB_LastSwitch__)
+		{
+			CARLIB_CurrentGear__ -= 1
+			CARLIB_LastSwitch__ = curtime()+CARLIB_ShiftSpeed__
+		}
+	}
+
+	local Throttle = (Forward | Reverse ? 60 : 0) + (Boost ? 40 : 0)
+	for(I=1, CARLIB_Engines__:count())
+	{
+		CARLIB_Engines__[I, entity]:acfThrottle(Throttle)
+	}
+
+	CARLIB_Gearbox__:acfShift(CARLIB_CurrentGear__)
+	
+	CARLIB_Gearbox__:acfClutch((Brake | Handbrake ? 100 : 0))
+	
+	CARLIB_FrontDiff__:acfBrake((Brake ? CARLIB_BrakeRatio__[1, number] : 0))
+	CARLIB_RearDiff__:acfBrake((Brake | Handbrake ? CARLIB_BrakeRatio__[2, number] : 0))
+}
+
+function event_carMove(Callbacks:array)
+{
+	local LinearVelocity = CARLIB_Base__:vel()
+	if(LinearVelocity:length() > 1)
+	{
+		for(I=1, Callbacks:count())
+		{
+			local StrCallback = Callbacks[I, string]
+			StrCallback(LinearVelocity, CARLIB_Base__:angVel())
+		}
+	}
+}
+
+# Getters and setters
+function carlib_setEngineActive(ActiveState:number)
+{
+	for(I=1, CARLIB_Engines__:count())
+	{
+		CARLIB_Engines__[I, entity]:acfActive(ActiveState)
+	}
+}
+function carlib_setDriver(Player:entity)
+{
+	if(!(Player:isValid() && Player:isPlayer())) { return }
+	inputRegisterSource("__carlibDriver", Player)
+	registerCallback("event_playerInput", "carlib_DriverInput__")
+}
+function carlib_clearDriver()
+{
+	unregisterCallback("event_playerInput", "carlib_DriverInput__")
+	inputUnregisterSource("__carlibDriver")
+	CARLIB_InputData__ = table()
+}
+function string carlib_lookupKeymapping(Feature:string)
+{
+	return CARLIB_KeyMapping__[Feature, string]
+}

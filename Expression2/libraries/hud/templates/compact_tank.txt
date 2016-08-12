@@ -1,0 +1,31 @@
+function myHUDInit(EGP:wirelink, DataTable:table) # Create the hud elements in here
+{
+	local Player = DataTable["player", entity]
+	
+	local PlyRes = egpScrSize(Player)
+	
+	local Scale = 1
+	EGP:egpClear()
+
+	EGP:egpBox(1, PlyRes/2, vec2()) #slave
+	EGP:egpAlpha(1,0)
+	
+	I=2
+	
+	local MaxRot = 45, Count = 25
+	local Arr = array()
+	for(II=0, 4)
+	{
+		for(III=1, Count)
+		{
+			Arr:pushVector2(vec2(-25, -25):rotate((MaxRot/Count)*III):rotate(90*II))
+		}
+	}
+	EGP:egpLineStrip(I, Arr)
+
+	for(Index=2, I)
+	{
+		EGP:egpParent(Index, 1)
+		EGP:egpColor(Index, vec())
+	}
+}

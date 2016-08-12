@@ -1,0 +1,13 @@
+if(EventsTable__:exists(clkName())) {
+	local StrEvent__ = clkName()
+	local CallbacksArray__ = EventsTable__[StrEvent__, table]:toArray()
+	StrEvent__(CallbacksArray__) # Passes registered callbacks to event
+	
+	if(EventsTable__[StrEvent__, table]:exists("pollInterval")) { timer(StrEvent__, EventsTable__[StrEvent__, table]["pollInterval", number]) }
+} elseif(chatClk()) { # runOnChat support
+	eventManualTrigger("event_playerChat", 0)
+} elseif(fileClk()) {
+	eventManualTrigger("event_fileUploaded", 0)
+} elseif(keyClk()) { # runOnKeys support, this will cause a critical error if runOnKeys is manually set without including the input library..
+	eventManualTriggerWithCallbacks("event_playerInput", EventsTable__["event_playerInput", table]:toArray())
+}

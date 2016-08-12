@@ -1,0 +1,44 @@
+# These are variables shared between drive and aim modules, they need to be here to prevent errors.
+@persist [InputData__, CameraData__]:table
+@persist [Base__, Gun__]:entity
+
+#[ Uncomment to enable debugging
+@outputs [Base__, Gun__]:entity
+@outputs [InputData__, CameraData__]:table
+#]#
+
+# Core event system functions.
+#include "libraries/event_system/event_core"
+
+# Initialization 
+function tanklib_Init(InitTable:table)
+{
+	AimInt__ = 50 							# 50ms default interval
+	BrakeForce__ = 4
+	IdleThrottle__ = 45
+	AimLimits__ = array(-20, 10, 360)				# Elevation, Depression, Yaw
+	
+    if(InitTable:exists("base")) { Base__ = InitTable["base", entity] }
+    if(InitTable:exists("gun")) { Gun__ = InitTable["gun", entity] }
+	
+    AimSpeed__ = ang(clamp(50 - (Gun__:mass()/1000),0,10))	# Max rotation speed of gun
+    GunInertia__ = shiftL(ang(Gun__:inertia()))		# Gun inertia
+	
+	if(InitTable:exists("engines")) { Engines__ = InitTable["engines", array] }
+	if(InitTable:exists("pod")) { InputData__["source", wirelink] = InitTable["pod", wirelink] }
+	if(InitTable:exists("brakeforce")) { BrakeForce__ = InitTable["brakeforce", number] }
+	if(InitTable:exists("lgearbox")) { LGearbox__ = InitTable["lgearbox", entity] }
+	if(InitTable:exists("rgearbox")) { RGearbox__ = InitTable["rgearbox", entity] }
+	if(InitTable:exists("cvt")) { CVTGearbox__ = InitTable["cvt", entity] }
+	if(InitTable:exists("cam")) { CameraData__["cam", wirelink] = InitTable["cam", wirelink] }
+}
+
+# Events
+function event_tanklibUpdate(Callbacks:array) # This you can use for any custom stuff, like HUDs, etc, isn't used for anything else.
+{
+	for(I=1, Callbacks:count())
+	{
+		local StrCallback = Callbacks[I, string]
+		StrCallback() # No parameters.
+	}
+}
