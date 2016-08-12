@@ -1,0 +1,15 @@
+@name Chat Event Example
+
+if(first())
+{
+    #include "libraries/chat/chat_core"
+    
+    function myChatCommand(Player:entity, DataArray:array)
+    {
+        print(Player)
+        printTable(DataArray)
+        unregisterChatCommand("testCommand")
+    }
+    registerChatCommand("testCommand", "myChatCommand")
+}
+#include "libraries/event_system/event_polling"

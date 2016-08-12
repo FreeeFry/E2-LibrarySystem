@@ -1,0 +1,31 @@
+@name Holo spawner event example
+@inputs 
+@outputs 
+@trigger 
+
+if(first())
+{
+    #include "libraries/holo/holo_core"
+    
+    # This event will spawn the holograms you add below
+    registerEvent("event_holoSpawn", 250) # The interval specified here will effectively be the spawnrate, keep in mind.
+    
+    # This is where you setup the holograms you want to create
+    holoSpawnerAdd(1, table("posl" = table(vec(100, 0, 0), entity()), "color" = vec(0, 128, 255), "parent" = entity()))
+    holoSpawnerAdd(2, table("posl" = table(vec(-100, 0, 0), entity()), "color" = vec(255, 128, 0), "parent" = entity()))
+    holoSpawnerAdd(3, table("posl" = table(vec(0, 100, 0), entity()), "color" = vec(0, 255, 0), "parent" = entity()))
+    holoSpawnerAdd(4, table("posl" = table(vec(0, -100, 0), entity()), "color" = vec(0, 0, 255), "parent" = entity()))
+    
+    # This callback can be used to further modify the holograms AFTER they're spawned.
+    function holoSpawned(Identifier:number, Holo:entity, Remaining:number)
+    {
+        print("Holo with index", Identifier, Holo, "was just spawned.")
+        if(Identifier == 4) # Last holo I've added
+        {
+            unregisterEvent("event_holoSpawn") # Stop the event from running
+        }
+    }
+    registerCallback("event_holoSpawn", "holoSpawned")
+}
+
+#include "libraries/event_system/event_polling"
