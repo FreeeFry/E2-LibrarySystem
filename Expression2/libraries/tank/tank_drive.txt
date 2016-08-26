@@ -82,10 +82,10 @@ function event_mobilityUpdate(Callbacks:array)
 		} else {
 			if(S)
 			{
-				LGearbox:acfClutchRight(A)
-				LGearbox:acfBrakeRight((A ? BrakeForce__*3 : 0))
-				RGearbox:acfClutchLeft(D)
-				RGearbox:acfBrakeLeft((D ? BrakeForce__*3 : 0))
+				LGearbox:acfClutchRight(D)
+				LGearbox:acfBrakeRight((D ? BrakeForce__*3 : 0))
+				RGearbox:acfClutchLeft(A)
+				RGearbox:acfBrakeLeft((A ? BrakeForce__*3 : 0))
 			} else {
 				LGearbox:acfClutchRight(A)
 				LGearbox:acfBrakeRight((A ? BrakeForce__*3 : 0))
