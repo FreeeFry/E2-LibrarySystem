@@ -13,7 +13,8 @@ function inputRegisterSource(SourceIdentifier:string, Source:entity)
 	if(Source:isValid() && Source:isPlayer())
 	{
 		local SourceData = table(
-			"src" = Source
+			"src" = Source,
+			"keys" = table()
 		)
 		RegisteredSources__[SourceIdentifier, table] = SourceData
 		runOnKeys(Source, 1)
@@ -48,13 +49,14 @@ function event_playerInput(Callbacks:array) # Only register callbacks to this ev
 				local Callback = Callbacks[I, string]
 				Callback(Player, Key, Player:keyPressed(Key)) # Last parameter is the current state of the key.
 			}
+			RegisteredSources__[ID, table]["keys", table][Key, number] = Player:keyPressed(Key)
 			break
 		}
 	}
 }
 
 # Getters and setters
-function table inputGetStates(SourceIdentifier:string)
+function table inputGetStates(SourceIdentifier:string) # Gets the previous state ( current state if called outside the event_playerInput callback !! )
 {
 	return((RegisteredSources__:exists(SourceIdentifier) ? RegisteredSources__[SourceIdentifier, table] : table()))
 }

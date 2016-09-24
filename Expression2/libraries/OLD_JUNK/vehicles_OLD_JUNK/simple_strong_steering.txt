@@ -1,0 +1,76 @@
+@name Simple Strong Steering Lib v1.1
+# SetAng
+@persist [MaxAngle IdleFactor ActiveFactor LastAng Accum]:normal PodLink:wirelink [ReferenceEnt Self]:entity [KeyDecrease KeyIncrease]:string RotationAngle:angle
+# Hydraulic
+@persist [HydroSteerLen HydroStartLength HydroConstant HydroDamping AccumH ActiveFactorH IdleFactorH]:normal [KeyIncreaseH KeyDecreaseH]:string [PodLinkH]:wirelink HydraulicsSteer:array
+@outputs Accum SteerDir
+@autoupdate
+
+function initSteering(RefEnt:entity, SlaveEnt:entity, DecreaseKey:string, IncreaseKey:string, PodCtrl:wirelink, MaxSteer, ActiveSpeed, IdleSpeed, PivotAngle:angle)
+{
+    MaxAngle = MaxSteer
+    IdleFactor = IdleSpeed
+    ActiveFactor = ActiveSpeed
+    KeyDecrease = DecreaseKey
+    KeyIncrease = IncreaseKey
+    Accum = 0
+    ReferenceEnt = RefEnt
+    Self = SlaveEnt
+    PodLink = PodCtrl
+    RotationAngle = clamp(PivotAngle, -1, 1)
+}
+
+function initSteering_Hydraulic(Hydros:array, DecreaseKey:string, IncreaseKey:string, PodCtrl:wirelink, Constant, Damping, StartLen, SteerLen, ActiveSpeed, IdleSpeed)
+{
+    HydroSteerLen = SteerLen
+    HydroStartLength = StartLen
+    KeyIncreaseH = IncreaseKey
+    KeyDecreaseH = DecreaseKey
+    PodLinkH = PodCtrl
+    HydroConstant = Constant
+    HydroDamping = Damping
+    HydraulicsSteer = Hydros
+    ActiveFactorH = ActiveSpeed
+    IdleFactorH = IdleSpeed
+    AccumH = 0
+    for(I=1,Hydros:count())
+    {
+        Hydros[I, wirelink]["Constant", number] = Constant
+        Hydros[I, wirelink]["Damping", number] = Damping
+        Hydros[I, wirelink]["Length", number] = StartLen
+    }
+}
+
+function steer_Hydraulic()
+{
+    local Decrease = PodLinkH[KeyDecreaseH, number]
+    local Increase = PodLinkH[KeyIncreaseH, number]
+    
+    local SteerDir = Decrease-Increase, Length = 0
+    AccumH += ((HydroSteerLen*SteerDir)-AccumH) * (Decrease|Increase ? ActiveFactorH : IdleFactorH)
+    
+    for(I=1,HydraulicsSteer:count())
+    {
+        Hydro = HydraulicsSteer[I, wirelink]        
+        Length = HydroStartLength - AccumH*(I > HydraulicsSteer:count()/2 ? -1 : 1)
+        Hydro["Length", number] = Length
+    }
+}
+
+function steer()
+{
+    local Decrease = PodLink[KeyDecrease, number]
+    local Increase = PodLink[KeyIncrease, number]
+    
+    local SteerDir = Decrease-Increase
+    local TargetAng = MaxAngle*SteerDir
+    local DiffAng = TargetAng-Accum
+    
+    Accum += DiffAng*(Decrease|Increase ? ActiveFactor*clamp(0.7 - ReferenceEnt:vel():length()*0.000381*1.25, 0.1, 1.5) : IdleFactor)
+    
+    local WorldAng = ReferenceEnt:toWorld(RotationAngle*Accum)
+    
+    Self:setAng(WorldAng)
+    Self:setMass(1)
+    Self:propFreeze(1)
+}

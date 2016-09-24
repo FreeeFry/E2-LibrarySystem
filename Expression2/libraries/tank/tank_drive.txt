@@ -1,11 +1,11 @@
 @persist [Engines__]:array
 @persist [LGearbox__, RGearbox__, CVTGearbox__]:entity
-@persist [ClutchAccum__, BrakeForce__, IdleThrottle__]:number
+@persist [MaxClutch__, BrakeForce__, MaxThrottle__, IdleThrottle__]:number
 
 #[ Uncomment to enable debugging.
 @outputs [Engines__]:array
 @outputs [LGearbox__, RGearbox__, CVTGearbox__]:entity
-@outputs [ClutchAccum__, BrakeForce__, IdleThrottle__]:number
+@outputs [MinClutch__, MaxClutch__, BrakeForce__, MaxThrottle__, IdleThrottle__]:number
 #]#
 
 # This is required.
@@ -37,28 +37,15 @@ function event_mobilityUpdate(Callbacks:array)
 	local RGearbox = RGearbox__
 	local Speed = InputData__["speed", number]
 	
-	LGearbox:acfClutchLeft(0)
-	LGearbox:acfClutchRight(0)
-	RGearbox:acfClutchLeft(0)
-	RGearbox:acfClutchRight(0)
-
-	#[
-	if(!A & !D)
-	{
-		ClutchAccum__ = 0
-	} elseif((A & $A) | (D & $D))
-	{
-		ClutchAccum__ = 1
-	} else {
-
-		ClutchAccum__ = clamp(ClutchAccum__-0.016*(eventGetInterval("event_mobilityUpdate")/50), 0, 1)
-	} #]#
-	ClutchAccum__ = 0
+	LGearbox:acfClutchLeft(MinClutch__)
+	LGearbox:acfClutchRight(MinClutch__)
+	RGearbox:acfClutchLeft(MinClutch__)
+	RGearbox:acfClutchRight(MinClutch__)
 
 	local LGear = (W & !A & !D ? 1 : (S & !A & !D ? 2 : (D ? 1 : (A ? 2 : 0))))
 	local RGear = (W & !A & !D ? 1 : (S & !A & !D ? 2 : (D ? 2 : (A ? 1 : 0))))
 
-	Throttle = (W | S ? 100 : (A | D ? 100 :  IdleThrottle__))
+	Throttle = (W | S ? MaxThrottle__ : (A | D ? MaxThrottle__ :  IdleThrottle__))
 	for(I=1, Engines__:count())
 	{
 		Engines__[I, entity]:acfThrottle(Throttle)
@@ -67,29 +54,26 @@ function event_mobilityUpdate(Callbacks:array)
 	LGearbox:acfShift(LGear)
 	RGearbox:acfShift(RGear)
 
-	LGearbox:acfClutchLeft((A | D ? 100 : 0))
-	RGearbox:acfClutchRight((A | D ? 100 : 0))
+	LGearbox:acfClutchLeft((A | D ? MaxClutch__ : MinClutch__))
+	RGearbox:acfClutchRight((A | D ? MaxClutch__ : MinClutch__))
 	
 	LGearbox:acfBrake(0)
 	RGearbox:acfBrake(0)
 	
 	if(A | D)
 	{
-		if(Space)
-		{    
-			LGearbox:acfClutchRight(ClutchAccum__)
-			RGearbox:acfClutchLeft(ClutchAccum__)
-		} else {
+		if(!Space)
+		{
 			if(S)
 			{
-				LGearbox:acfClutchRight(D)
+				LGearbox:acfClutchRight((D ? MaxClutch__ : MinClutch__))
 				LGearbox:acfBrakeRight((D ? BrakeForce__*3 : 0))
-				RGearbox:acfClutchLeft(A)
+				RGearbox:acfClutchLeft((A ? MaxClutch__ : MinClutch__))
 				RGearbox:acfBrakeLeft((A ? BrakeForce__*3 : 0))
 			} else {
-				LGearbox:acfClutchRight(A)
+				LGearbox:acfClutchRight((A ? MaxClutch__ : MinClutch__))
 				LGearbox:acfBrakeRight((A ? BrakeForce__*3 : 0))
-				RGearbox:acfClutchLeft(D)
+				RGearbox:acfClutchLeft((D ? MaxClutch__ : MinClutch__))
 				RGearbox:acfBrakeLeft((D ? BrakeForce__*3 : 0))
 			}
 		}
@@ -98,15 +82,14 @@ function event_mobilityUpdate(Callbacks:array)
 		RGearbox:acfBrake(BrakeForce__*1.5)
 	}
 }
-function event_tankMove(Callbacks:array)
+function event_tankMove(Callbacks:array) # Requires event_inputUpdate for getting current velocity.
 {
-	local LinearVelocity = Base__:vel()
-	if(LinearVelocity:length() > 0)
+	if(InputData__["speed", number] > 0)
 	{
 		for(I=1, Callbacks:count())
 		{
 			local StrCallback = Callbacks[I, string]
-			StrCallback(LinearVelocity, Base__:angVel())
+			StrCallback(InputData__["speed", number], Base__:angVel())
 		}
 	}
 }
@@ -115,6 +98,18 @@ function event_tankMove(Callbacks:array)
 function tanklib_setIdleThrottle(IdleThrottle:number)
 {
 	IdleThrottle__ = IdleThrottle
+}
+function tanklib_setMaxThrottle(MaxThrottle:number)
+{
+	MaxThrottle__ = MaxThrottle
+}
+function tanklib_setMinClutch(MinClutch:number)
+{
+	MinClutch__ = MinClutch
+}
+function tanklib_setMaxClutch(MaxClutch:number)
+{
+	MaxClutch__ = MaxClutch
 }
 function tanklib_setEngineActive(ActiveState:number)
 {

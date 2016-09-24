@@ -96,3 +96,7 @@ function tanklib_setAimpos(AimPos:vector)
 {
     AimCurrent__ = AimPos
 }
+function vector tanklib_getAimpos()
+{
+	return AimCurrent__
+}

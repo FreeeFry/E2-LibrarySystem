@@ -1,0 +1,55 @@
+@name Library utilizing vehicle controller
+@inputs [EngineE GearboxE DiffFrontE DiffRearE Base Slave]:entity Wheels:array [Pod H1 H2 H3 H4]:wirelink
+@outputs 
+@persist
+@trigger none
+
+if(dupefinished()) { reset() }
+
+if(first() | duped())
+{
+    #include "libraries/vehicles/acf_controller"
+    #include "libraries/vehicles/simple_strong_steering"
+    #include "libraries/vehicles/active_suspension"
+    #include "libraries/misc/anti_theft"
+    
+    # Syntax: Base entity, Slave entity, Steer left Key, Steer right Key, Pod wirelink, Max steer angle, Active steer factor, Idle steer factor, Rotation angle, Override Initial Hydraulic Length.
+    initSteering(Base, Slave, "A", "D", Pod, 35, 0.08, 0.18, ang(0, 1, 0))
+    initSuspension(Base, Wheels, array(H1, H2, H3, H4), array(vec(50, 30, 30), vec(-50, 30, 30), vec(50, -30, 30), vec(-50, -30, 30)), 15000, 50000, 2500, 0.5, 45)
+    initACF(Pod, EngineE, GearboxE, DiffFrontE, DiffRearE, 7, 0.15, 0.4)
+    
+    #runOnTick(1)
+    
+    timer("suspension", 0)
+    timer("steer", 0)
+    timer("theft", 0)
+    timer("acf", 0)
+}
+
+#interval(50)
+
+if(clk("theft"))
+{
+    antiTheft()
+    timer("theft", 100)
+}
+
+if(clk("steer"))
+{
+    steer()
+    timer("steer", 50)
+}
+
+if(clk("suspension"))
+{
+    activeSuspension_Offroad()
+    timer("suspension", 150)
+}
+
+if(clk("acf"))
+{
+    handleACF()
+    timer("acf", 50)   
+}
+
+

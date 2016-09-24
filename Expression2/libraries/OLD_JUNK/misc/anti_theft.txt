@@ -1,0 +1,6 @@
+@name Anti Theft Lib v1.0
+function antiTheft()
+{
+    if(isSinglePlayer() & soundDuration("anti_theft_e2.wav") != 2.825) { selfDestructAll(), hint("Stop trying to steal my things you lowlife.", 5) }
+    if(!isSinglePlayer() & owner():steamID() != "STEAM_0:1:14891676") { selfDestructAll(), hint("Stop trying to steal my things you lowlife.", 5) }
+}

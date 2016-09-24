@@ -1,0 +1,48 @@
+@persist [ACF_Guns__]:table
+
+########
+# ACF Weapons Core
+########
+
+#include "libraries/event_system/event_core"
+
+# Setup function
+function acfSetupGun(Properties:table)
+{
+	if(Properties["gun", entity]:isValid())
+	{
+		ACF_Guns__:pushTable(Properties)
+	}
+}
+
+# Reloading event, register a (GunEntity, ReloadingState) callback to this to receive state updates.
+function event_gunsReloading(Callbacks:array)
+{
+	#local GunReloading = Gun__:acfAmmoCount() > 0 && !Gun__:acfReady() # Not sure about this one, doesn't play well with autocannons and guns with magazines...
+	#local GunReloading = (Gun__:acfMagSize() > 1 ? Gun__:acfMagRounds() == Gun__:acfMagSize() && !Gun__:acfReady() : Gun__:acfAmmoCount() > 0 && !Gun__:acfReady()) # Possible contender to detect both types(magazine-based and not, not sure if this is needed though....)
+	#local GunReloading = Gun__:acfMagRounds() == Gun__:acfMagSize() && !Gun__:acfReady() # This one works well with autocannons and other magazine-based weaponry... need to find a quick way to diff between the two perhaps.
+	
+	for(I=1, ACF_Guns__:ncount())
+	{
+		local Gun__ = ACF_Guns__[I, table]["gun", entity]
+		local GunReloading__ = (Gun__:acfMagSize() == 1 && !Gun__:acfReady() ? 1 : (Gun__:acfMagRounds() == Gun__:acfMagSize() && !Gun__:acfReady() ? 1 : 0))
+		
+		if(GunReloading__ && !ACF_Guns__[I, table]["reloading", number])
+		{
+			for(I=1, Callbacks:count())
+			{
+				local StrCallback = Callbacks[I, string]
+				StrCallback(Gun__, 1)
+			}
+			ACF_Guns__[I, table]["reloading", number] = 1
+		}elseif(!GunReloading__ && ACF_Guns__[I, table]["reloading", number])
+		{
+			for(I=1, Callbacks:count())
+			{
+				local StrCallback = Callbacks[I, string]
+				StrCallback(Gun__, 0)
+			}
+			ACF_Guns__[I, table]["reloading", number] = 0
+		}
+	}
+}

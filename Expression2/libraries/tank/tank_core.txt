@@ -16,6 +16,9 @@ function tanklib_Init(InitTable:table)
 	AimInt__ = 50 							# 50ms default interval
 	BrakeForce__ = 4
 	IdleThrottle__ = 45
+	MaxThrottle__ = 100
+	MaxClutch__ = 1
+	MinClutch__ = 0
 	AimLimits__ = array(-20, 10, 360)				# Elevation, Depression, Yaw
 	
     if(InitTable:exists("base")) { Base__ = InitTable["base", entity] }

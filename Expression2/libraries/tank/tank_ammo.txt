@@ -36,7 +36,7 @@ function event_tanklibUnload__(Callbacks:array) # Internal event,  don't registe
 }
 
 # Getters and setters
-function table tanklib_getLinkedAmmo(Weapon:entity)
+function table tanklib_getLinkedAmmo(Weapon:entity) # Very expensive function
 {
 	local GunLinks = Weapon:acfLinks()
 	local AmmoTable = table()
