@@ -34,7 +34,7 @@ function holoSpawnerLoadedFile__(Filename:string, State:number) # Internal callb
 }
 function table holoSpawnerGetEntTable(Base:entity, Ent:entity, ID:number) # Internal function, don't use unless you really have need of it.
 {
-	local EntTable = table(
+	return(table(
 		"id" = ID,
 		"color" = Ent:getColor(),
 		"alpha" = Ent:getAlpha(),
@@ -42,9 +42,7 @@ function table holoSpawnerGetEntTable(Base:entity, Ent:entity, ID:number) # Inte
 		"posl" = table(Base:toLocal(Ent:pos()), Base),
 		"model" = Ent:model(),
 		"material" = Ent:getMaterial()
-	)
-	
-	return EntTable
+	))
 }
 
 # Events
@@ -220,7 +218,7 @@ function holoSpawnerAddMulti(SpawnTable:table)
 }
 function number holoSpawnerLoadFromFile(Filename:string, ParentEntity:entity)
 {
-	if(isSinglePlayer()) { hint("Files cannot be loaded in singleplayer :(", 5) }
+	if(isSinglePlayer()) { error("Files cannot be loaded in singleplayer :(") }
 	if(!fileCanLoad()) { return 0}
 	
 	HOLOLIB_SaveData__ = table("filename" = Filename, "parent" = ParentEntity)
@@ -231,7 +229,7 @@ function number holoSpawnerLoadFromFile(Filename:string, ParentEntity:entity)
 }
 function number holoSpawnerLoadFromFile(Filename:string, ParentEntity:entity, StartingIndex:number)
 {
-	if(isSinglePlayer()) { hint("Files cannot be loaded in singleplayer :(", 5) }
+	if(isSinglePlayer()) { error("Files cannot be loaded in singleplayer :(") }
 	if(!fileCanLoad()) { return 0}
 	
 	HOLOLIB_SaveData__ = table("filename" = Filename, "parent" = ParentEntity)
@@ -243,7 +241,7 @@ function number holoSpawnerLoadFromFile(Filename:string, ParentEntity:entity, St
 }
 function number holoSpawnerLoadToTable(Filename:string, Callback:string)
 {
-	if(isSinglePlayer()) { hint("Files cannot be loaded in singleplayer :(", 5) }
+	if(isSinglePlayer()) { error("Files cannot be loaded in singleplayer :(") }
 	if(!fileCanLoad()) { return 0}
 	
 	HOLOLIB_LoadToTableCallback__ = Callback

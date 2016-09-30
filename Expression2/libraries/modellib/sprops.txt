@@ -1,0 +1,45 @@
+function table spropsGetModels(Category:string)
+{
+	local ValidCats = invert(table("cuboids", "cylinders", "geometry", "mechanics", "misc", "prisms", "rectangles", "rectangles_thin", "trans", "triangles", "triangles_thin"))
+	if(!ValidCats:exists(Category)) {return table()}
+	switch(Category)
+	{
+		case "cuboids",
+			#include "modeltables/sprops/cuboids"
+			break
+		case "cylinders",
+			#include "modeltables/sprops/cylinders"
+			break
+		case "geometry",
+			#include "modeltables/sprops/geometry"
+			break
+		case "mechanics",
+			#include "modeltables/sprops/mechanics"
+			break
+		case "misc",
+			#include "modeltables/sprops/misc"
+			break
+		case "prisms",
+			#include "modeltables/sprops/prisms"
+			break
+		case "rectangles",
+			#include "modeltables/sprops/rectangles"
+			break
+		case "rectangles_thin",
+			#include "modeltables/sprops/rectangles_thin"
+			break
+		case "trans",
+			#include "modeltables/sprops/trans"
+			break
+		case "triangles",
+			#include "modeltables/sprops/triangles"
+			break
+		case "triangles_thin",
+			#include "modeltables/sprops/triangles_thin"
+			break
+		default,
+			RETTAB = table()
+			break
+	}
+	return RETTAB_
+}
