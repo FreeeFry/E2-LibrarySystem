@@ -5,37 +5,37 @@ function table spropsGetModels(Category:string)
 	switch(Category)
 	{
 		case "cuboids",
-			#include "modeltables/sprops/cuboids"
+			#include "libraries/modellib/sprops/cuboids"
 			break
 		case "cylinders",
-			#include "modeltables/sprops/cylinders"
+			#include "libraries/modellib/sprops/cylinders"
 			break
 		case "geometry",
-			#include "modeltables/sprops/geometry"
+			#include "libraries/modellib/sprops/geometry"
 			break
 		case "mechanics",
-			#include "modeltables/sprops/mechanics"
+			#include "libraries/modellib/sprops/mechanics"
 			break
 		case "misc",
-			#include "modeltables/sprops/misc"
+			#include "libraries/modellib/sprops/misc"
 			break
 		case "prisms",
-			#include "modeltables/sprops/prisms"
+			#include "libraries/modellib/sprops/prisms"
 			break
 		case "rectangles",
-			#include "modeltables/sprops/rectangles"
+			#include "libraries/modellib/sprops/rectangles"
 			break
 		case "rectangles_thin",
-			#include "modeltables/sprops/rectangles_thin"
+			#include "libraries/modellib/sprops/rectangles_thin"
 			break
 		case "trans",
-			#include "modeltables/sprops/trans"
+			#include "libraries/modellib/sprops/trans"
 			break
 		case "triangles",
-			#include "modeltables/sprops/triangles"
+			#include "libraries/modellib/sprops/triangles"
 			break
 		case "triangles_thin",
-			#include "modeltables/sprops/triangles_thin"
+			#include "libraries/modellib/sprops/triangles_thin"
 			break
 		default,
 			RETTAB = table()
