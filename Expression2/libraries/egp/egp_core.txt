@@ -1,0 +1,178 @@
+@persist EGP_Data__:table
+
+#include "libraries/event_system/event_core"
+    
+# EGP Library
+
+# Utillity functions
+
+# Returns the raw data table for the specified screen
+# Note: Changes done to the returned table will affect the rest of the library!
+function table egpGetObjects(ID:string)
+{
+	if(EGP_Data__:exists(ID)) { return EGP_Data__[ID, table] }
+	return table()
+}
+# Returns a table containing all screens and their properties
+function table egpGetScreens()
+{
+	local Screens = table()
+	foreach(ScreenID, ScreenData:table = EGP_Data__)
+	{
+		Screens:pushTable(table("id" = ScreenData["id", string], "egp" = ScreenData["egp", wirelink]))
+	}
+	return Screens
+}
+# Returns 1 or 0 depending if the provided position is in view from given the Origin and Angle
+# FoV is value between 0 and 1. 0: Looking completely away from. 1: Looking exactly at point.
+function number vector:inViewFrom(Origin:vector, ViewDirection:vector, FoV)
+{
+	return ViewDirection:dot((This-Origin):normalized()) > FoV
+}
+#Returns next free itemID
+function number table:egpFindFreeObjectID()
+{
+	return This["objects", table]:ncount()+1
+}
+#
+# Returns the center of the screen
+function vector2 table:egpGetCenter()
+{
+	if(This:exists("center")) { return This["center", vector2] } else { This["center", vector2] = This["res", vector2]/2 }
+	return This["center", vector2]
+}
+# Finds players looking at the screen/emitter 
+# Works best with screens since its harder to detect if someone aims towards an emitter.
+function array table:egpFindViewers(MaxRange)
+{
+	# Since this will usually be called in a tight loop, let's utilize a cache.
+	local First = 0
+	if(!This:exists("viewer_cache")) { This["viewer_cache", table] = table("next" = curtime()+1), First = 1 }
+	if((curtime() > This["viewer_cache", table]["next", number] | First) & findCanQuery()) # Update cache max once every second to reduce the cost of this function.
+	{
+		local EGPE = This["egp", wirelink]:entity()
+		local EGPPos = EGPE:boxCenterW()
+		
+		This["viewer_cache", table]["viewers", array] = players()
+		This["viewer_cache", table]["next", number] = curtime()+1
+		
+		if(EGPE:type() == "gmod_wire_egp_emitter") { EGPPos += EGPE:up() * 75 }
+		for(I=This["viewer_cache", table]["viewers", array]:count(), 1, -1)
+		{
+			local Viewer = This["viewer_cache", table]["viewers", array][I, entity]
+			if(Viewer:pos():distance(EGPE:pos()) > MaxRange) { This["viewer_cache", table]["viewers", array]:remove(I), continue }
+			if(EGPE:type() != "gmod_wire_egp_emitter")   # Screen
+			{
+				if(Viewer:aimEntity() != EGPE) { This["viewer_cache", table]["viewers", array]:remove(I) }
+			}else{                  # Gotta handle emitters differently
+				if(!EGPPos:inViewFrom(Viewer:shootPos(), Viewer:eye(), 0.8)) { This["viewer_cache", table]["viewers", array]:remove(I) }
+			}
+		}
+	}
+	return This["viewer_cache", table]["viewers", array]
+}
+
+# Core functions
+# Initializes an EGP using the provided settings table
+function table egpInit(Settings:table)
+{
+	if(!Settings:exists("id") | EGP_Data__:exists(Settings["id", string])) { return table()} # ID is not set or the screen is allready initialized.
+	if(!Settings:exists("egp") | !Settings["egp", wirelink]:entity():isValid()) { return table() } # No wirelink or wirelinked entity is not valid.
+	
+	local EGP = Settings["egp", wirelink]
+	local Resolution = (Settings:exists("res") ? Settings["res", vector2] : vec2(512))
+	
+	local SettingsTable = table(
+		"id" = Settings["id", string],
+		"egp" = Settings["egp", wirelink],
+		"res" = Resolution,
+		"center" = Resolution/2
+	)
+	EGP_Data__[Settings["id", string], table] = SettingsTable
+	
+	EGP:egpClear()
+	EGP:egpResolution(vec2(), Resolution)
+	
+	return SettingsTable
+}
+
+# Creates an EGP object, returns the ID it's assigned.
+#TODO: Expand this with all other object types. (._.)
+function number table:egpCreateObject(ObjectData:table)
+{
+	local ID = -1 # If -1 is returned, an error occured(not a valid/supported object type requested)
+	local ObjectType = ObjectData["type", string]
+	local EGP = This["egp", wirelink]
+	if(!This:exists("objects")) { This["objects", table] = table() }
+	
+	if(ObjectType == "line")
+	{
+		ID = This:egpFindFreeObjectID()
+		if(ObjectData["centered", number])
+		{
+			local Center = This:egpGetCenter()
+			ObjectData["start", vector2] = Center+ObjectData["start", vector2]
+			ObjectData["end", vector2] = Center+ObjectData["end", vector2]
+		}
+		EGP:egpLine(ID, ObjectData["start", vector2], ObjectData["end", vector2])
+		This["objects", table]:pushTable(table("id" = ID, "data" = ObjectData))
+	}elseif(ObjectType == "circle")
+	{
+		ID = This:egpFindFreeObjectID()
+		if(ObjectData["centered", number])
+		{
+			local Center = This:egpGetCenter()
+			ObjectData["pos", vector2] = Center+ObjectData["pos", vector2]
+		}
+		EGP:egpCircle(ID, ObjectData["pos", vector2], ObjectData["size", vector2])
+		This["objects", table]:pushTable(table("id" = ID, "data" = ObjectData))
+	}
+	return ID
+}
+# Returns a string indexed table with all EGP ID's used for the crosshair.
+# Style constains type, size and color settings for the pointer.
+# TODO: Add more pointer types.
+function table table:egpCreatePointer(Style:table)
+{
+	local ValidTypes = array("crosshair"), Type = 0
+	for(I=1, ValidTypes:count()) { if(Style["type", string] == ValidTypes[I, string]) { Type = I, break } }, if(!Type) { return table("error" = "Invalid crosshair type") }
+	
+	local EGP = This["egp", wirelink]
+	local Parent = This:egpCreateObject(table(
+		"type" = "circle",
+		"pos" = vec2(),
+		"size" = vec2(0),
+		"centered" = 0
+	))
+	local RetTable = table()
+	switch(Type)
+	{
+		case 1, # crosshair
+			local Size = vec2(5, 5)
+			if(Style:exists("size")) { Size = Style["size", vector2] }
+			
+			local Horizontal = This:egpCreateObject(table(
+				"type" = "line",
+				"start" = vec2(-Size:x(), 0),
+				"end" = vec2(Size:x(), 0)
+			))
+			local Vertical = This:egpCreateObject(table(
+				"type" = "line",
+				"start" = vec2(0, -Size:y()),
+				"end" = vec2(0, Size:y())
+			))
+			EGP:egpParent(Horizontal, Parent)
+			EGP:egpParent(Vertical, Parent)
+			EGP:egpParentToCursor(Parent)
+			if(Style:exists("color"))
+			{
+				EGP:egpColor(Horizontal, Style["color", vector])
+				EGP:egpColor(Vertical, Style["color", vector])
+			}
+			
+			RetTable = table("parent" = Parent, "hor" = Horizontal, "ver" = Vertical)
+			
+			break
+	}
+	return RetTable
+}

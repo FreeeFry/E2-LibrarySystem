@@ -37,7 +37,7 @@ function registerCallback(EventName:string, CallbackName:string)
 		{
 			if(EventsTable__[EventName, table][I, string] == CallbackName)
 			{
-				print("[ERROR]: Found duplicate callback on registry call, not adding.")
+				print("[ERROR]: Found duplicate callback on registerCallback call, ignoring.")
 				Found = 1
 				break
 			}
@@ -67,8 +67,13 @@ function unregisterCallback(EventName:string, CallbackName:string)
 # Misc functions:
 function number eventIsRegistered(EventName:string)
 {
-	if(EventsTable__:exists(EventName)) { return 1 }
-	return(0)
+	return(EventsTable__:exists(EventName))
+}
+# Returns a COPY of the specified event's table - note this is an expensive function and shouldn't be called often!
+function table eventGetCallbacks(EventName:string)
+{
+	if(!eventIsRegistered(EventName)) { return table() }
+	return(EventsTable__[EventName, table]:clone())
 }
 function eventSetInterval(EventName:string, NewInterval:number)
 {
@@ -105,5 +110,31 @@ function registerEvent(EventName:string, PollInterval:number, Callback:string)
 		EventsTable__[EventName, table] = table("pollInterval" = PollInterval)
 		timer(EventName, PollInterval)
 		registerCallback(EventName, Callback)
+	}else{
+		registerCallback(EventName, Callback)
+	}
+}
+
+# Polling function, it's required you call this outside your if(first()) code section to make the event system work
+function eventPoll()
+{
+	if(EventsTable__:exists(clkName())) {
+		local StrEvent__ = clkName()
+		StrEvent__(EventsTable__[StrEvent__, table]:toArray()) # Passes registered callbacks to event
+		
+		if(EventsTable__[StrEvent__, table]:exists("pollInterval")) { timer(StrEvent__, EventsTable__[StrEvent__, table]["pollInterval", number]) }
+	}
+	if(chatClk() & eventIsRegistered("event_playerChat")) { # runOnChat support
+		eventManualTrigger("event_playerChat", 0)
+	}
+	if(fileClk() & eventIsRegistered("event_fileUploaded")) {
+		eventManualTrigger("event_fileUploaded", 0)
+	}
+	if(keyClk() & eventIsRegistered("event_playerInput")) { # runOnKeys support, this will cause a critical error if runOnKeys is manually set without including the input library..
+		eventManualTriggerWithCallbacks("event_playerInput", EventsTable__["event_playerInput", table]:toArray())
+	}
+	if(egpQueueClk() & eventIsRegistered("event_egpQueueUpdate")) # This seems to be able to randomly break.....
+	{
+		eventManualTriggerWithCallbacks("event_egpQueueUpdate", EventsTable__["event_egpQueueUpdate", table]:toArray())
 	}
 }

@@ -16,7 +16,7 @@
 # Events
 function event_driverEnterVehicle(Callbacks:array)# Event detects whenever a player enters the designated pod.
 {
-	if(!SourceVehicle__:isValid()) { return } # No need to run code if we're not setup yet.
+	if(!SourceVehicle__:isValid()) { return } # No need to run any code if we're not setup yet.
 	local Driver = SourceVehicle__:driver()
 	
 	if(Driver != PreviousDriver__) # This will also trigger when the current driver exits the vehicle(useful?).
@@ -28,7 +28,7 @@ function event_driverEnterVehicle(Callbacks:array)# Event detects whenever a pla
 		}
 	}
 	PreviousDriver__ = Driver
-}
+}, registerEvent("event_driverEnterVehicle", 500)
 
 # Getters and setters
 function vehicleSetSource(SourceVehicle:entity)

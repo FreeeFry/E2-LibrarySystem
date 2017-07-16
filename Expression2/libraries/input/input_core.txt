@@ -60,3 +60,7 @@ function table inputGetStates(SourceIdentifier:string) # Gets the previous state
 {
 	return((RegisteredSources__:exists(SourceIdentifier) ? RegisteredSources__[SourceIdentifier, table] : table()))
 }
+function table inputGetKeys(SourceIdentifier:string) # Returns only the keys for the specified source.
+{
+	return inputGetStates(SourceIdentifier)["keys", table]
+}

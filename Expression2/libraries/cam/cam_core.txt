@@ -1,0 +1,266 @@
+@persist [CAMLIB_Data__]:table
+
+#[ Uncomment to enable debugging.
+@outputs [CAMLIB_Data__]:table
+#]#
+
+# Sets FLIR on/off for the specified camera
+function number camlib_setFLIR(CamID:string, State)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return 0 } # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	CamTable["cam", wirelink]["FLIR", number] = State
+	CamTable["flir", number] = State
+	
+	return 1
+}, function number camlib_toggleFLIR(CamID:string) { return camlib_setFLIR(CamID, !CAMLIB_Data__[CamID, table]["flir", number]) }
+
+# Sets the FoV of the specified camera
+function number camlib_setFOV(CamID:string, FoV:number)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return 0 } # No camera with that ID exists
+	CAMLIB_Data__[CamID, table]["cam", wirelink]["FOV", number] = FoV
+	
+	return 1
+}
+# Sets the active state of the specified camera
+function number camlib_setActive(CamID:string, ActiveState)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return 0 } # No camera with that ID exists
+	CAMLIB_Data__[CamID, table]["cam", wirelink]["Activated", number] = ActiveState
+	
+	return 1
+}
+# Sets the parent for specified camera
+function number camlib_setParent(CamID:string, Parent:entity)
+{
+	if(!Parent:isValid()) { return 0 } # Invalid parent entity
+	if(!CAMLIB_Data__:exists(CamID)) { return 0 } # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	
+	CamTable["cam", wirelink]["Parent", entity] = Parent
+	CamTable["parent", entity] = Parent
+	
+	return 1
+}
+# Sets position of specified camera
+function number camlib_setPosition(CamID:string, Position:vector)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return 0 } # No camera with that ID exists
+	
+	CAMLIB_Data__[CamID, table]["cam", wirelink]["Position", vector] = Position
+	return 1
+}
+function number camlib_setActive(CamID:string, ActiveState)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return 0} # No camera with that ID exists
+	
+	CAMLIB_Data__[CamID, table]["cam", wirelink]["Activated", number] = ActiveState
+}
+
+# Helper function to get current "zoom" mode
+function number camlib_getZoom(CamID:string, ModeID:string)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return 0 } # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	if(!CamTable:exists("modes")) { return -1 } # No camera modes defined
+	local CurrentMode = CamTable["currentmode", string]
+	
+	return CamTable["modes", table][CurrentMode, table]["currentzoom", number]
+}, function number camlib_getZoom(CamID:string) { return camlib_getZoom(CamID, CAMLIB_Data__[CamID, table]["currentmode", string]) }
+
+# Helper function to set current "zoom" mode"
+function number camlib_setZoom(CamID:string, ModeID:string, ZoomIndex:number)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return 0 } # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	if(!CamTable:exists("modes")) { return -1 } # No camera modes defined
+	if(!CamTable["modes", table][ModeID, table]:exists("zoomlevels")) { return -2 } # No zoom levels defined
+	local ZoomModes = CamTable["modes", table][ModeID, table]["zoomlevels", array]
+	if(!inrange(ZoomIndex, 1, ZoomModes:count())) { return -3 } # Invalid zoom index
+	
+	camlib_setFOV(CamID, ZoomModes[ZoomIndex, number])
+	CamTable["modes", table][ModeID, table]["currentzoom", number] = ZoomIndex
+	
+	return ZoomIndex
+}, function number camlib_setZoom(CamID:string, ZoomIndex:number) { return camlib_setZoom(CamID, CAMLIB_Data__[CamID, table]["currentmode", string], ZoomIndex) }
+
+# Helper functions to toggle between zoom levels
+function number camlib_nextZoom(CamID:string, ModeID:string, Loop:number)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return 0 } # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	if(!CamTable:exists("modes")) { return -1 } # No camera modes defined
+	if(!CamTable["modes", table]:exists(ModeID)) { return -2 } # No such camera mode
+	local ModeData = CamTable["modes", table][ModeID, table]
+	if(!ModeData:exists("zoomlevels")) { return -3 } # No zoom levels defined in this mode
+	local ZoomModes = ModeData["zoomlevels", array]
+	local CurrentZoom = ModeData["currentzoom", number]
+	
+	if(CurrentZoom+1 > ZoomModes:count())
+	{
+		if(!Loop) { return CurrentZoom } # No looping requested, return current
+		CurrentZoom = 1
+	}else{
+		CurrentZoom += 1
+	}
+	ModeData["currentzoom", number] = CurrentZoom
+	return camlib_setZoom(CamID, ModeID, CurrentZoom)
+}
+function number camlib_nextZoom(CamID:string, ModeID:string) { return camlib_nextZoom(CamID, ModeID, 1) }
+function number camlib_nextZoom(CamID:string) { return camlib_nextZoom(CamID, CAMLIB_Data__[CamID, table]["currentmode", string], 1) }
+
+function number camlib_prevZoom(CamID:string, ModeID:string, Loop:number)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return 0 } # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	if(!CamTable:exists("modes")) { return -1 } # No camera modes defined
+	if(!CamTable["modes", table]:exists(ModeID)) { return -2 } # No such camera mode
+	local ModeData = CamTable["modes", table][ModeID, table]
+	if(!ModeData:exists("zoomlevels")) { return -3 } # No zoom levels defined in this mode
+	local ZoomModes = ModeData["zoomlevels", array]
+	local CurrentZoom = ModeData["currentzoom", number]
+	
+	if(CurrentZoom-1 < 1)
+	{
+		if(!Loop) { return CurrentZoom } # No looping requested, return current
+		CurrentZoom = ZoomModes:count()
+	}else{
+		CurrentZoom -= 1
+	}
+	ModeData["currentzoom", number] = CurrentZoom
+	return camlib_setZoom(CamID, ModeID, CurrentZoom)
+}
+function number camlib_prevZoom(CamID:string, ModeID:string) { return camlib_prevZoom(CamID, ModeID, 1) }
+function number camlib_prevZoom(CamID:string) { return camlib_prevZoom(CamID, CAMLIB_Data__[CamID, table]["currentmode", string], 1) }
+
+function number camlib_addMode(CamID:string, ModeID:string, ModeData:table)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return 0} # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	
+	if(CamTable:exists("modes"))
+	{
+		local Modes = CamTable["modes", table]
+		if(Modes:exists(ModeID)) { return -1 } # Mode already exists.
+		
+		Modes[ModeID, table] = ModeData
+	}else{
+		CamTable["modes", table] = table()
+		CamTable["modes", table][ModeID, table] = ModeData
+		CamTable["currentmode", string] = ModeID
+	}
+	if(ModeData:exists("zoomlevels")) { CamTable["modes", table][ModeID, table]["currentzoom", number] = 1 }
+	return 1
+}
+# Gets the currently active camera mode
+function string camlib_getMode(CamID:string)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return "0"} # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	if(!CamTable:exists("modes")) { return "-1" } # No camera modes defined
+	
+	return CamTable["currentmode", string]
+}
+# Sets the currently active camera mode ( does not make the camera itself active! )
+function number camlib_setMode(CamID:string, ModeID:string)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return 0} # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	if(!CamTable:exists("modes")) { return -1 } # No camera modes defined
+	if(!CamTable["modes", table]:exists(ModeID)) { return -2 } # No such mode
+	
+	local ModeData = CamTable["modes", table][ModeID, table]
+	CamTable["currentmode", string] = ModeID
+	
+	if(ModeData:exists("parent")) { camlib_setParent(CamID, ModeData["parent", entity]) }
+	if(ModeData:exists("pos")) { camlib_setPosition(CamID, ModeData["pos", vector]) }
+	if(ModeData:exists("lpos")) { # Support for local positions too
+		local LocalPos = ModeData["lpos", table]
+		camlib_setPosition(CamID, LocalPos["ent", entity]:toWorld(LocalPos["pos", vector]))
+	}
+	if(ModeData:exists("zoomlevels")) { camlib_setZoom(CamID, ModeID, ModeData["currentzoom", number]) }
+	return 1
+}
+function array camlib_getModes(CamID:string)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return array()} # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	if(!CamTable:exists("modes")) { return array() } # No camera modes defined
+	return CamTable["modes", table]:keys()
+}
+
+# Helper function to toggle between defined camera modes
+function string camlib_nextMode(CamID:string, Loop)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return "" } # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	if(!CamTable:exists("modes")) { return "" } # No camera modes defined
+	local CurrentMode = CamTable["currentmode", string]
+	local Modes = camlib_getModes(CamID)
+	local CurrentIndex = invert(Modes)[CurrentMode, number]
+	if(CurrentIndex+1 > Modes:count() & !Loop) { return CamTable["currentmode", string] } # User specified no looping, exit.
+	
+	CurrentIndex += 1
+	if(CurrentIndex > Modes:count()) { CurrentIndex = 1 }
+	camlib_setMode(CamID, Modes[CurrentIndex, string])
+	return CamTable["currentmode", string]
+}, function string camlib_nextMode(CamID:string) { return camlib_nextMode(CamID, 1) }
+
+# Helper function to toggle between defined camera modes
+function string camlib_prevMode(CamID:string, Loop)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return "" } # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	if(!CamTable:exists("modes")) { return "" } # No camera modes defined
+	local CurrentMode = CamTable["currentmode", string]
+	local Modes = camlib_getModes(CamID)
+	local CurrentIndex = invert(Modes)[CurrentMode, number]
+	if(CurrentIndex-1 <= 0 & !Loop) { return CamTable["currentmode", string] } # User specified no looping, exit.
+	
+	CurrentIndex -= 1
+	if(CurrentIndex <= 0) { CurrentIndex = Modes:count() }
+	camlib_setMode(CamID, Modes[CurrentIndex, string])
+	return CamTable["currentmode", string]
+}, function string camlib_prevMode(CamID:string) { return camlib_prevMode(CamID, 1) }
+
+function array camlib_getZoomLevels(CamID:string, ModeID:string)
+{
+	if(!CAMLIB_Data__:exists(CamID)) { return array() } # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	if(!CamTable:exists("modes")) { return array() } # No camera modes defined
+	
+	return CamTable["modes", table][ModeID, table]["zoomlevels", array]
+}, function array camlib_getZoomLevels(CamID:string) { return camlib_getZoomLevels(CamID, CAMLIB_Data__[CamID, table]["currentmode", string]) }
+
+function vector camlib_getEyeTrace(CamID:string, ModeID:string, Player:entity)
+{
+	if(!Player:isValid()) { return vec() } # Invalid player
+	if(!CAMLIB_Data__:exists(CamID)) { return vec() } # No camera with that ID exists
+	local CamTable = CAMLIB_Data__[CamID, table]
+	if(!CamTable:exists("modes")) { return vec() } # No camera modes defined
+	local ModeData = CamTable["modes", table][ModeID, table]
+	local LocalPos = ModeData["lpos", table]
+	local Trace = rangerOffset(999999, LocalPos["ent", entity]:toWorld(LocalPos["pos", vector]), Player:eye())
+
+	return Trace:pos()
+	
+}, function vector camlib_getEyeTrace(CamID:string, Player:entity) { return camlib_getEyeTrace(CamID, CAMLIB_Data__[CamID, table]["currentmode", string], Player) }
+function number camlib_Init(Camera:wirelink, CamID:string, CameraSettings:table)
+{
+	# Check if camera is allready initialized.
+	if(CAMLIB_Data__:exists(CamID)) { hint(format("CAMLIB Error: Camera %s is already registered. Ignoring camlib_Init call!", CamID), 5), return 0 }
+	
+	local CameraTable = table(
+		"cam" = Camera
+	), CAMLIB_Data__[CamID, table] = CameraTable
+	
+	if(CameraSettings:exists("parent")) { camlib_setParent(CamID, CameraSettings["parent", entity]) }
+	if(CameraSettings:exists("pos")) { camlib_setPosition(CamID, CameraSettings["pos", vector]) }
+	if(CameraSettings:exists("active")) { camlib_setActive(CamID, CameraSettings["active", number]) }
+	
+	# Reset FoV and FLIR
+	Camera["FOV", number] = 90
+	Camera["FLIR", number] = 0
+	return 1
+}

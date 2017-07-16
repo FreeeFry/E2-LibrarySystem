@@ -1,0 +1,132 @@
+@name EGP Library Example
+@inputs [Screen, Emitter]:wirelink
+@outputs Ops
+
+# User variables
+# EGP Objects
+@persist [Line1, Line2, Line3, Circle1]:number
+@persist [ScreenPointer, EmitterPointer]:table
+@persist [ScreenO, EmitterO]:table
+@persist [ScreenE, EmitterE]:entity
+
+# Misc
+@persist [StartTime, Printed]:number
+@trigger 
+
+if(dupefinished()) { reset() }
+if(first() & Screen & Emitter)
+{
+    #include "libraries/egp/egp_core"
+    
+    # Some example code below.
+    
+    ScreenE = Screen:entity()
+    EmitterE = Emitter:entity()
+    
+    StartTime = curtime()
+    
+    ScreenO = egpInit(table("id" = "screen", "egp" = Screen))
+    EmitterO = egpInit(table("id" = "emitter", "egp" = Emitter))
+    
+    #Screen objects
+    Line1 = ScreenO:egpCreateObject(table( # Line relative to center
+        "type" = "line",
+        "start" = vec2(0),
+        "end" = vec2(256, 0),
+        "centered" = 1
+    ))
+    Line2 = ScreenO:egpCreateObject(table( # Line with absolute coordinates
+        "type" = "line",
+        "start" = vec2(256, 0),
+        "end" = vec2(256, 512)
+    ))
+    Circle1 = ScreenO:egpCreateObject(table( # Circle relative to center
+        "type" = "circle",
+        "start" = vec2(0),
+        "size" = vec2(0),
+        "centered" = 1
+    ))
+    Line3 = ScreenO:egpCreateObject(table( # Line relative to Circle1
+        "type" = "line",
+        "start" = vec2(0),
+        "end" = vec2(256, -256)
+    )), Screen:egpParent(Line3, Circle1)
+    
+    #Emitter objects    
+    
+    EmitterO:egpCreateObject(table( # Line relative to center
+        "type" = "line",
+        "start" = vec2(0),
+        "end" = vec2(256, 0),
+        "centered" = 1
+    ))
+    EmitterO:egpCreateObject(table( # Line with absolute coordinates
+        "type" = "line",
+        "start" = vec2(256, 0),
+        "end" = vec2(256, 512)
+    ))
+    
+    # Super crazy syntax now possible! :D
+    Emitter:egpParent(
+        EmitterO:egpCreateObject(table(                 # Create the child line object and feed it as first parameter.
+            "type" = "line",
+            "start" = vec2(0),
+            "end" = vec2(256, -256))
+        ),                                              # End of first parameter.
+        EmitterO:egpCreateObject(table(                 # Create the parent circle object and feed it as the second parameter.
+            "type" = "circle",
+            "pos" = vec2(0),
+            "size" = vec2(5),
+            "centered" = 1)
+        )                                               # End of second parameter.
+    )
+    
+    ScreenPointer = ScreenO:egpCreatePointer(table(
+        "type" = "crosshair",
+        "color" = vec(255, 0, 0),
+        "size" = vec2(5, 5)
+    ))
+    EmitterPointer = EmitterO:egpCreatePointer(table(
+        "type" = "crosshair",
+        "color" = vec(0, 255, 0),
+        "size" = vec2(5, 5)
+    ))
+
+    function userevent_updateEGP(Callbacks:array)
+    {
+        Screen:egpAngle(Circle1, -(curtime()-StartTime))
+        Emitter:egpAngle(4, -(curtime()-StartTime)) # 4th object to be created on the emitter = parent circle.
+    }, registerEvent("userevent_updateEGP", 250)
+    
+    
+    # Update viewers and call any callbacks
+    function event_updatePointer(Callbacks:array)
+    {
+        local EGPs = egpGetScreens()
+        if(!Printed) { printTable(EGPs), Printed = 1 }
+        local Viewers = table()
+        for(I=1, EGPs:count())
+        {
+            local EGP = egpGetObjects(EGPs[I, table]["id", string])
+            local ID = EGP["id", string]
+            Viewers[ID, array] = EGP:egpFindViewers(250)
+            if(Viewers[ID, array]:count()) { for(I=1,Callbacks:count()) { Callbacks[I, string](ID, Viewers[ID, array]) } } # Calls registered callbacks passing the ScreenID and the viewer list as parameters(only if there're any viewers!).
+        }
+    }
+    
+    function viewersUpdate(ScreenID:string, Viewers:array)
+    {
+        local EGP = (ScreenID == "screen" ? ScreenO : EmitterO)
+        local Size = EGP["res", vector2]
+        local Pointer = (ScreenID == "screen" ? ScreenPointer : EmitterPointer)
+        
+        # Just a fun example of making a crosshair that spins based on where you aim at the EGP.
+        local CursorPos = EGP["egp", wirelink]:egpCursor(Viewers[1, entity])
+        local Angle = ((CursorPos:x()/Size:x()) + (CursorPos:y()/Size:y())) * 360
+        EGP["egp", wirelink]:egpAngle(Pointer["parent", number], Angle)
+        
+    }, registerEvent("event_updatePointer", 33.3, "viewersUpdate") # 30 fps
+}
+#include "libraries/event_system/event_polling"
+
+Ops = opcounter()

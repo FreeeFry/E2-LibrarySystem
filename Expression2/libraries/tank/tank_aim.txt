@@ -57,8 +57,8 @@ function tanklib_setCameraZoom(ZoomLevel)
 }
 function tanklib_setCameraPosition(CameraPosition:vector)
 {
-	CameraData__["cam", wirelink]["Position", vector] = CameraPosition
 	CameraData__["pos", vector] = (CameraData__["parent", entity]:isValid() ? CameraData__["parent", entity]:toLocal(CameraPosition) : CameraPosition)
+	CameraData__["cam", wirelink]["Position", vector] = CameraPosition
 }
 function tanklib_setCameraParent(ParentEntity:entity)
 {

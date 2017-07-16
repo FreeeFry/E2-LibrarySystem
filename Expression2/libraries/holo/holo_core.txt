@@ -1,6 +1,7 @@
 @persist [HOLOLIB_HolosNotSpawned__, HOLOLIB_HoloIdentifiers__, HOLOLIB_SaveData__, HOLOLIB_AnimationQueue__]:table
 @persist [HOLOLIB_AnimationStep__, HOLOLIB_LoadFileIndexOffset]:number
 @persist [HOLOLIB_LoadToTableCallback__, HOLOLIB_SaveFilterCustom__]:string
+@persist [HOLOLIB_CodeGeneratorData__]:table
 
 # Required.
 #include "libraries/event_system/event_core"
@@ -46,6 +47,49 @@ function table holoSpawnerGetEntTable(Base:entity, Ent:entity, ID:number) # Inte
 }
 
 # Events
+function event_codegeneratorGatherData(Callbacks:array)
+{
+	#HOLOLIB_CodeGeneratorData__
+	if(!HOLOLIB_CodeGeneratorData__:exists("generated")) { HOLOLIB_CodeGeneratorData__["generated", string] = "" }
+	#print(format("Remaining to gather: %i", HOLOLIB_CodeGeneratorData__["ents", array]:count()))
+	local Ent = HOLOLIB_CodeGeneratorData__["ents", array]:popEntity()
+	
+	local ID = HOLOLIB_CodeGeneratorData__["index", number]
+	local EntData = holoSpawnerGetEntTable(HOLOLIB_CodeGeneratorData__["reference", entity], Ent, HOLOLIB_CodeGeneratorData__["index", number])
+	local NL = format("\n")
+	local Accuracy = 3 # Number of decimal points to round angles and vectors down to.
+	local LocalPos = EntData["posl", table][1, vector]
+	local LocalAng = EntData["anglel", table][1, angle]
+	local CodeStr = "holoSpawnerAdd(" + ID + ",table(" + NL +
+		"\"color\" = vec(" + EntData["color", vector]:x() + "," + EntData["color", vector]:y() + "," + EntData["color", vector]:z() + ")," + NL +
+		"\"alpha\" = " + EntData["alpha", number] + "," + NL +
+		"\"model\" = \"" + EntData["model", string] + "\"," + NL +
+		"\"material\" = \"" + EntData["material", string] + "\"," + NL +
+		"\"posl\" = table(vec(" + round(LocalPos:x(),Accuracy) + "," + round(LocalPos:y(),Accuracy) + "," + round(LocalPos:z(),Accuracy) +"), GeneratorReference)," + NL +
+		"\"anglel\" = table(ang(" + round(LocalAng:pitch(),Accuracy) + "," + round(LocalAng:yaw(),Accuracy) + "," + round(LocalAng:roll(),Accuracy) +"), GeneratorReference))" + NL + ")" + NL + NL
+	HOLOLIB_CodeGeneratorData__["generated", string] = HOLOLIB_CodeGeneratorData__["generated", string] + CodeStr
+	
+	HOLOLIB_CodeGeneratorData__["index", number] = HOLOLIB_CodeGeneratorData__["index", number] + 1
+	if(!HOLOLIB_CodeGeneratorData__["ents", array]:count())
+	{
+		fileWrite(HOLOLIB_CodeGeneratorData__["savefile", string], HOLOLIB_CodeGeneratorData__["generated", string])
+		print(format("Wrote %i bytes to %s", HOLOLIB_CodeGeneratorData__["generated", string]:length(), HOLOLIB_CodeGeneratorData__["savefile", string]))
+		unregisterEvent("event_codegeneratorGatherData")
+	}
+}
+
+# Internal event, don't register it, only register callbacks to it!
+# Any callback registered to this event can return 1 to skip spawning of the hologram
+function number event_holoPreSpawn(ID, HoloData:table)
+{
+	local Callbacks = eventGetCallbacks("event_holoPreSpawn")
+	for(I=1, Callbacks:count())
+	{
+		if(Callbacks[I, string](ID, HoloData)[number]) { return 1 }
+	}
+	return 0
+}, registerManualEvent("event_holoPreSpawn")
+
 function event_holoSpawn(Callbacks:array)
 {
 	#print(HOLOLIB_HolosNotSpawned__[1, table]["id", number])
@@ -55,75 +99,92 @@ function event_holoSpawn(Callbacks:array)
 	local HoloData = HOLOLIB_HolosNotSpawned__[1, table]
 	local ID = HoloData["id", number]
 	
-	local HoloEnt = holoCreate(ID)
-	local Keys = HoloData:keys()
-	
-	for(I=1, Keys:count())
+	local HoloEnt = noentity()
+	local Keys = array()
+	local Skip = 0
+	if(eventIsRegistered("event_holoPreSpawn"))
 	{
-		switch(Keys[I, string])
+		if(event_holoPreSpawn(ID, HoloData)) { Skip = 1 }
+	}
+	if(!Skip)
+	{
+		HoloEnt = holoCreate(ID)
+		Keys = HoloData:keys()
+		for(I=1, Keys:count())
 		{
-			case "pos",
-				holoPos(ID, HoloData["pos", vector])
-				break
-			case "posl",
-				if(HoloData["posl", table][2, entity]:isValid())
-				{
-					holoPos(ID, HoloData["posl", table][2, entity]:toWorld(HoloData["posl", table][1, vector]))
-				}
-				break
-			case "angle",
-				holoAng(ID, HoloData["angle", angle])
-				break
-			case "anglel",
-				if(HoloData["anglel", table][2, entity]:isValid())
-				{
-					holoAng(ID, HoloData["anglel", table][2, entity]:toWorld(HoloData["anglel", table][1, angle]))
-				}
-				break
-			case "ang",
-				holoAng(ID, HoloData["ang", angle])
-				break
-			case "angl",
-				if(HoloData["angl", table][2, entity]:isValid())
-				{
-					holoAng(ID, HoloData["angl", table][2, entity]:toWorld(HoloData["angl", table][1, angle]))
-				}
-				break
-			case "scale",
-				holoScale(ID, HoloData["scale", vector])
-				break
-			case "scaleu",
-				holoScaleUnits(ID, HoloData["scaleu", vector])
-				break
-			case "color",
-				holoColor(ID, HoloData["color", vector])
-				break
-			case "material",
-				holoMaterial(ID, HoloData["material", string])
-				break
-			case "alpha",
-				holoAlpha(ID, HoloData["alpha", number])
-				break
-			case "model",
-				holoModel(ID, HoloData["model", string])
-				break
-			case "modelg",
-				local ModelData__ = HoloData["modelg", table]
-				holoModel(ID, ModelData__["model", string])
-				holoBodygroup(ID, ModelData__["bodygroup", table]["group", number], ModelData__["bodygroup", table]["sub", number])
-				break
-			case "parent",
-				holoParent(ID, HoloData["parent", entity])
-				break
+			switch(Keys[I, string])
+			{
+				case "pos",
+					holoPos(ID, HoloData["pos", vector])
+					break
+				case "posl",
+					if(HoloData["posl", table][2, entity]:isValid())
+					{
+						holoPos(ID, HoloData["posl", table][2, entity]:toWorld(HoloData["posl", table][1, vector]))
+					}
+					break
+				case "angle",
+					holoAng(ID, HoloData["angle", angle])
+					break
+				case "anglel",
+					if(HoloData["anglel", table][2, entity]:isValid())
+					{
+						holoAng(ID, HoloData["anglel", table][2, entity]:toWorld(HoloData["anglel", table][1, angle]))
+					}
+					break
+				case "ang",
+					holoAng(ID, HoloData["ang", angle])
+					break
+				case "angl",
+					if(HoloData["angl", table][2, entity]:isValid())
+					{
+						holoAng(ID, HoloData["angl", table][2, entity]:toWorld(HoloData["angl", table][1, angle]))
+					}
+					break
+				case "scale",
+					holoScale(ID, HoloData["scale", vector])
+					break
+				case "scaleu",
+					holoScaleUnits(ID, HoloData["scaleu", vector])
+					break
+				case "color",
+					holoColor(ID, HoloData["color", vector])
+					break
+				case "material",
+					holoMaterial(ID, HoloData["material", string])
+					break
+				case "alpha",
+					holoAlpha(ID, HoloData["alpha", number])
+					break
+				case "disableshading",
+					holoDisableShading(ID, HoloData["disableshading", number])
+				case "model",
+					holoModel(ID, HoloData["model", string])
+					break
+				case "modelg",
+					local ModelData__ = HoloData["modelg", table]
+					holoModel(ID, ModelData__["model", string])
+					holoBodygroup(ID, ModelData__["bodygroup", table]["group", number], ModelData__["bodygroup", table]["sub", number])
+					break
+				case "parent",
+					holoParent(ID, HoloData["parent", entity])
+					break
+				case "parenti",
+					holoParent(ID, HoloData["parenti", number])
+					break
+			}
 		}
 	}
 	
 	HOLOLIB_HolosNotSpawned__:remove(1)
 	HOLOLIB_HoloIdentifiers__:remove(ID)
 	
-	for(I=1, Callbacks:count())
+	if(!Skip)
 	{
-		Callbacks[I, string](ID, HoloEnt, HOLOLIB_HolosNotSpawned__:ncount())
+		for(I=1, Callbacks:count())
+		{
+			Callbacks[I, string](ID, HoloEnt, HOLOLIB_HolosNotSpawned__:ncount())
+		}
 	}
 }
 function event_holoSpawnerFilter__(Callbacks:array) # Internal event only, don't register callbacks to this.
@@ -169,18 +230,16 @@ function event_holoAnimate(Callbacks:array)
 	local Index = HOLOLIB_AnimationQueue__[1, table]["index", number]
 	local AnimationData = HOLOLIB_AnimationQueue__[1, table]["data", table]
 	local Identifier = AnimationData["id", string]
-
-	switch(AnimationData["stepsize", table][1, string])
+	
+	if(AnimationData["stepsize", table][1, string] == "angle")
 	{
-		case "angle",
-			holoAng(Index, holoEntity(Index):toWorld(AnimationData["stepsize", table][2, angle]))
-			break
-		case "vector",
-			holoPos(Index, holoEntity(Index):toWorld(AnimationData["stepsize", table][2, vector]))
-			break
-		case "scale",
-			holoScale(Index, holoScale(Index)+AnimationData["stepsize", table][2, vector])
-			break
+		holoAng(Index, holoEntity(Index):toWorld(AnimationData["stepsize", table][2, angle]))
+	}elseif(AnimationData["stepsize", table][1, string] == "vector")
+	{
+		holoPos(Index, holoEntity(Index):toWorld(AnimationData["stepsize", table][2, vector]))
+	}elseif(AnimationData["stepsize", table][1, string] == "scale")
+	{
+		holoScale(Index, holoScale(Index)+AnimationData["stepsize", table][2, vector])
 	}
 	HOLOLIB_AnimationStep__ += 1
 	
@@ -295,24 +354,22 @@ function number holoQueueAnimation(HoloIndex:number, Steps:number, AnimationData
 {        
 	local AnimationData_ = table()
 	local Keys = AnimationData:keys()
-	
 	local ValidType = 0
+	
 	for(I=1, Keys:count())
 	{
-		switch(Keys[I, string])
+		if(Keys[I, string] == "angle")
 		{
-			case "angle",
-				AnimationData_["stepsize", table] = table(1 = "angle", 2 = AnimationData["angle", angle]/Steps)
-				ValidType = 1
-				break
-			case "vector",
-				AnimationData_["stepsize", table] = table(1 = "vector", 2 = AnimationData["vector", vector]/Steps)
-				ValidType = 1
-				break
-			case "scale",
-				AnimationData_["stepsize", table] = table(1 = "scale", 2 = AnimationData["scale", vector]/Steps)
-				ValidType = 1
-				break
+			AnimationData_["stepsize", table] = table(1 = "angle", 2 = AnimationData["angle", angle]/Steps)
+			ValidType = 1
+		}elseif(Keys[I, string] == "vector")
+		{
+			AnimationData_["stepsize", table] = table(1 = "vector", 2 = AnimationData["vector", vector]/Steps)
+			ValidType = 1
+		}elseif(Keys[I, string] == "scale")
+		{
+			AnimationData_["stepsize", table] = table(1 = "scale", 2 = AnimationData["scale", vector]/Steps)
+			ValidType = 1
 		}
 	}
 	if(ValidType)
@@ -326,6 +383,16 @@ function number holoQueueAnimation(HoloIndex:number, Steps:number, AnimationData
 		return HOLOLIB_AnimationQueue__:ncount() # Returns number of total animation ( basically think of its ticket number in the queue).
 	}
 	return -1 # Invalid type
+}
+
+function holoSpawnerGenerateSpawnerCode(ReferenceEnt:entity, Ents:array, Savefile:string)
+{
+	HOLOLIB_CodeGeneratorData__["reference", entity] = ReferenceEnt
+	HOLOLIB_CodeGeneratorData__["ents", array] = Ents,
+	HOLOLIB_CodeGeneratorData__["savefile", string] = Savefile
+	HOLOLIB_CodeGeneratorData__["index", number] = 1
+	registerEvent("event_codegeneratorGatherData", 25)
+	#print(format("ReferenceEntity: %s\nEntitiesCount: %i\nSaveFile: %s\n", toString(ReferenceEnt), Ents:count(), Savefile))
 }
 
 # Getters and Setters

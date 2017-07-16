@@ -6,43 +6,78 @@
 
 #include "libraries/event_system/event_core"
 
-# Setup function
-function acfSetupGun(Properties:table)
+# Setup function, identifier is a string to identify the gun when later aimed, etc.
+function acfSetupGun(Properties:table, Identifier:string)
 {
-	if(Properties["gun", entity]:isValid())
+	if(Properties["gun", entity]:isValid() & Properties["base", entity]:isValid() & !ACF_Guns__:exists(Identifier))
 	{
-		ACF_Guns__:pushTable(Properties)
+		if(!Properties:exists("limits")) { Properties["limits", array] = array(-20, 20, 360) }														# Max depression/elevation/turn.
+		if(!Properties:exists("speed")) { Properties["speed", angle] = ang(clamp(50 - (Properties["gun", entity]:mass()/1000),0,10)) }				# Max aiming speed.
+		if(!Properties:exists("aimAt")) { Properties["aimAt", vector] = Properties["gun", entity]:pos() + Properties["gun", entity]:forward()*100 } # Starting aim-position
+		Properties["inertia", angle] =  shiftL(ang(Properties["gun", entity]:inertia())) # Store this so we don't need to fetch it later.
+		ACF_Guns__[Identifier, table] = Properties
 	}
 }
 
-# Reloading event, register a (GunEntity, ReloadingState) callback to this to receive state updates.
+# Reloading event, register a callback that takes the GunEntity:entity, ReloadingState:number parameters to this event to receive reload state changes.
 function event_gunsReloading(Callbacks:array)
 {
-	#local GunReloading = Gun__:acfAmmoCount() > 0 && !Gun__:acfReady() # Not sure about this one, doesn't play well with autocannons and guns with magazines...
-	#local GunReloading = (Gun__:acfMagSize() > 1 ? Gun__:acfMagRounds() == Gun__:acfMagSize() && !Gun__:acfReady() : Gun__:acfAmmoCount() > 0 && !Gun__:acfReady()) # Possible contender to detect both types(magazine-based and not, not sure if this is needed though....)
-	#local GunReloading = Gun__:acfMagRounds() == Gun__:acfMagSize() && !Gun__:acfReady() # This one works well with autocannons and other magazine-based weaponry... need to find a quick way to diff between the two perhaps.
+	#local GunReloading = Gun:acfAmmoCount() > 0 && !Gun:acfReady() # Not sure about this one, doesn't play well with autocannons and guns with magazines...
+	#local GunReloading = (Gun:acfMagSize() > 1 ? Gun:acfMagRounds() == Gun:acfMagSize() && !Gun:acfReady() : Gun:acfAmmoCount() > 0 && !Gun:acfReady()) # Possible contender to detect both types(magazine-based and not, not sure if this is needed though....)
+	#local GunReloading = Gun:acfMagRounds() == Gun:acfMagSize() && !Gun:acfReady() # This one works well with autocannons and other magazine-based weaponry... need to find a quick way to diff between the two perhaps.
 	
-	for(I=1, ACF_Guns__:ncount())
+	foreach(Identifier, GunData:table=ACF_Guns__)
 	{
-		local Gun__ = ACF_Guns__[I, table]["gun", entity]
+		local Gun__ = GunData["gun", entity]
 		local GunReloading__ = (Gun__:acfMagSize() == 1 && !Gun__:acfReady() ? 1 : (Gun__:acfMagRounds() == Gun__:acfMagSize() && !Gun__:acfReady() ? 1 : 0))
 		
-		if(GunReloading__ && !ACF_Guns__[I, table]["reloading", number])
+		if(GunReloading__ && !GunData["reloading", number])
 		{
 			for(I=1, Callbacks:count())
 			{
 				local StrCallback = Callbacks[I, string]
 				StrCallback(Gun__, 1)
 			}
-			ACF_Guns__[I, table]["reloading", number] = 1
-		}elseif(!GunReloading__ && ACF_Guns__[I, table]["reloading", number])
+			GunData["reloading", number] = 1
+		}elseif(!GunReloading__ && GunData["reloading", number])
 		{
 			for(I=1, Callbacks:count())
 			{
 				local StrCallback = Callbacks[I, string]
 				StrCallback(Gun__, 0)
 			}
-			ACF_Guns__[I, table]["reloading", number] = 0
+			GunData["reloading", number] = 0
 		}
 	}
+}
+
+# This actually makes the guns aim, don't register callbacks to this.
+function event_gunsAim(Callbacks:array)
+{
+	foreach(Identifier, GunData:table=ACF_Guns__)
+	{
+		local Gun__ = GunData["gun", entity]
+		local Base__ = GunData["base", entity]
+		local AimSpeed__ = GunData["speed", angle]
+		local AimAt__ = GunData["aimAt", vector]
+		local AimLimits__ = GunData["limits", array]
+		local ForceModifier = ang(1,1,1)
+		#if(GunData:exists("forcemod")) { continue }
+		Gun__:applyAngForce(((Gun__:toLocal(Base__:toWorld(clamp(Base__:toLocal(Gun__:toWorld(clamp(Gun__:toLocal((AimAt__ - Gun__:pos()):toAngle()),-AimSpeed__, AimSpeed__))),ang(AimLimits__[1, number],-AimLimits__[3, number],-1),ang(AimLimits__[2, number],AimLimits__[3, number],1)))) * 250 - Gun__:angVel() * 30) * GunData["inertia", angle])*ForceModifier)
+	}
+}, registerEvent("event_gunsAim", 50)
+
+function vector acf_getAimPos(Identifier:string)
+{
+	if(!ACF_Guns__:exists(Identifier)) { return vec() }
+	return ACF_Guns__[Identifier, table]["aimAt", vector]
+}
+function acf_setAimpos(Identifier:string, Position:vector)
+{
+	if(!ACF_Guns__:exists(Identifier)) { return }
+	ACF_Guns__[Identifier, table]["aimAt", vector] = Position
+}
+function array acf_getGuns()
+{
+	return ACF_Guns__:keys()
 }

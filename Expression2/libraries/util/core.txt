@@ -1,0 +1,45 @@
+@persist [UTIL_ParentEntsFinderData__]:table
+@persist [UTIL_TraceData__]:table
+
+# Required.
+#include "libraries/event_system/event_core"
+
+function event_utilParentFinderFilter(Callbacks:array)
+{
+	if(!UTIL_ParentEntsFinderData__:exists("filtered")) { UTIL_ParentEntsFinderData__["filtered", array] = array() }
+	#print(format("Remaining to filter: %i", UTIL_ParentEntsFinderData__["unfiltered", array]:count()))
+	local Ent = UTIL_ParentEntsFinderData__["unfiltered", array]:popEntity()
+	if(Ent:type() == UTIL_ParentEntsFinderData__["class", string] & Ent:parent() == UTIL_ParentEntsFinderData__["parent", entity])
+	{
+		UTIL_ParentEntsFinderData__["filtered", array]:pushEntity(Ent)
+	}
+	if(!UTIL_ParentEntsFinderData__["unfiltered", array]:count())
+	{
+		Callbacks[1, string](UTIL_ParentEntsFinderData__["filtered", array], UTIL_ParentEntsFinderData__["parent", entity])
+		unregisterEvent("event_utilParentFinderFilter")
+	}
+}
+
+function findEntsByParent(ReferenceEntity:entity, Class:string, Callback:string)
+{
+	findIncludeClass("prop_physics")
+	findInSphere(ReferenceEntity:pos(), 500)
+	UTIL_ParentEntsFinderData__["unfiltered", array] = findToArray()
+	UTIL_ParentEntsFinderData__["parent", entity] = ReferenceEntity
+	UTIL_ParentEntsFinderData__["class", string] = Class
+	registerEvent("event_utilParentFinderFilter", 10, Callback)
+}
+
+function ranger traceNormal(Position:vector, Direction:vector, TraceID:string)
+{
+	local TraceData = UTIL_TraceData__[TraceID, table]
+	
+	if(curtime() >= TraceData["nexttrace", number])
+	{
+		local Ranger = rangerOffset(50000, Position, Direction)
+		TraceData["ranger", ranger] = Ranger
+		TraceData["nexttrace", number] = curtime() + 0.1
+		if(!UTIL_TraceData__:exists(TraceID)) { UTIL_TraceData__[TraceID, table] = TraceData }
+	}
+	return TraceData["ranger", ranger]
+}
