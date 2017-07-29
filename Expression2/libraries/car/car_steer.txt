@@ -48,6 +48,6 @@ function event_steerUpdate(Callbacks:array) # This doesn't call any callbacks, s
 		local Ratio = CARLIB_SteerRatios__[I, number]
 		Ent:setAng(CARLIB_SteerBase__:toWorld(CARLIB_SteerAccum__*CARLIB_SteerRatios__[I, number]*CARLIB_SteerAxis__))
 		Ent:propFreeze(1)
-		if(!Frozen) { Ent:setPos(CARLIB_SteerParent__[1, entity]:toWorld(CARLIB_SteerParent__[2, vector]))}
+		if(!Frozen & CARLIB_SteerParent__[1, entity]:isValid()) { Ent:setPos(CARLIB_SteerParent__[1, entity]:toWorld(CARLIB_SteerParent__[2, vector]))}
 	}
 }

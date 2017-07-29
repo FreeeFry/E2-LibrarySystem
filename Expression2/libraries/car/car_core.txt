@@ -97,7 +97,6 @@ function event_carlibUpdate(Callbacks:array)
 	}
 
 	CARLIB_Gearbox__:acfShift(CARLIB_CurrentGear__)
-	
 	CARLIB_Gearbox__:acfClutch((Brake | Handbrake ? 100 : 0))
 	
 	CARLIB_FrontDiff__:acfBrake((Brake ? CARLIB_BrakeRatio__[1, number] : 0))
@@ -125,6 +124,7 @@ function carlib_setEngineActive(ActiveState:number)
 		CARLIB_Engines__[I, entity]:acfActive(ActiveState)
 	}
 }
+function number carlib_getEngineActive() { return CARLIB_Engines__[1, entity]:acfActive() }
 function carlib_setDriver(Player:entity)
 {
 	if(!(Player:isValid() && Player:isPlayer())) { return }
