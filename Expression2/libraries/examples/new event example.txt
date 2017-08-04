@@ -1,0 +1,42 @@
+@persist LastPosition:table
+ 
+if(first())
+{
+    #include "libraries/event_system/event_core"
+   
+    # Callback definition - here we actually have our code that reacts to the event.
+    function playerMoved(EventData:table)
+    {
+        local Players = EventData["players", table]
+        for(I=1, Players:count())
+        {
+            local Player = Players[I, entity]
+            print(format("%s moved!", Player))
+        }
+    }
+    # Event test definition - here we determine if the event is supposed to "trigger" and return some data to go along with the event.
+    function table test_playerMove()
+    {
+        local Ret = table("hit" = 0, "players" = table())
+        local Players = players()
+        for(I=1, Players:count())
+        {
+            local Player = Players[I, entity]
+            local SteamID = Player:steamID()
+            if(LastPosition:exists(SteamID))
+            {
+                if(LastPosition[SteamID, vector]:distance(Player:pos()) > 5)
+                {
+                    Ret["hit", number] = 1 # If this is set, the callbacks will be called with the returned table.
+                    Ret["players", table]:pushEntity(Player)
+                }
+            }
+            LastPosition[Player:steamID(), vector] = Player:pos()
+        }
+        return Ret
+    }
+    # Nowdays we don't need to define an event function, just a function that determines if th event should fire, and an optional callback.
+   registerEventTest("event_playerMove", 250, "test_playerMove", "playerMoved")
+   
+}elseif(dupefinished()){reset()}
+#include "libraries/event_system/event_polling"

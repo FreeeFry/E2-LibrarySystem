@@ -1,0 +1,50 @@
+@name Entity to hologram code generator
+@inputs [ParentEnt]:entity
+
+if(dupefinished()) { reset() }
+
+if(first() & ParentEnt:isValid())
+{
+    #include "libraries/holo/holo_core"
+    #include "libraries/util/core"    
+    
+    # This bit of the code is used for saving entities to a hologram format which can later be respawned as holograms
+    # It currently supports color, alpha, material, model, position and angle
+    
+    # This is a callback function which is called when findEntsByParent finishes finding the entities
+    function filterFinish(Entities:array, ParentEntity:entity)
+    {
+        # Filename to save the generated hologram code to
+        local Filename = "holocode.txt"
+        
+        # Generates holoSpawnerAdd based code for the entities in the EntityData array and saves it to data\e2files\ with the specified filename, 
+        # ParentEntity is the reference entity which all angles and positions will be "local" to.
+        holoSpawnerGenerateSpawnerCode(ParentEntity, Entities, Filename)
+    }
+    # Finds entities of type "prop_physics" parented to ParentEnt and calls filterFinish with found entities when it's done
+    # All positions and angles will be relative to ParentEnt
+    #findEntsByParent(ParentEnt, "prop_physics", "filterFinish")
+    
+    
+    
+    # This bit of the code is used for loading saved contraptions back as holograms
+    
+    # GeneratorReference is a hardcoded entity reference in the code generated above which will be used as the reference entity when spawning the holograms
+    # set it to whatever you want your holograms to be parented to and offset from based on the original saved props.
+    GeneratorReference = ParentEnt
+    
+    # Here we include the saved file you moved from data\e2files into data\Expression2 which causes the hologram code to execute, adding it to the holoSpawner queue.
+    #include "holocode"
+    
+    # This is a callback function which is called when the holoSpawner finishes spawning a hologram.
+    function holoSpawned(ID:number, HoloEnt:entity, Remaining)
+    {
+        #print(ID, HoloEnt, Remaining)
+        if(!Remaining) { unregisterEvent("event_holoSpawn") } # Last hologram spawned, we can unregister the spawner so it doesn't use ops needlessly when idling.
+    }
+    # Here we register the "event" that takes care of spawning the holograms you've added to the queue with holoSpawnerAdd.
+    # Its set here to run at a 50ms interval which is sufficient for quickly spawning lots of holograms while not causing a massive load on the server.
+    registerEvent("event_holoSpawn", 50, "holoSpawned") # Register the spawning event and a custom callback that will be called whenever a hologram finishes spawning.
+}
+
+#include "libraries/event_system/event_polling"

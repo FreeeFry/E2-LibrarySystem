@@ -1,7 +1,12 @@
 if(EventsTable__:exists(clkName())) {
 	local StrEvent__ = clkName()
-	StrEvent__(EventsTable__[StrEvent__, table]:toArray()) # Passes registered callbacks to event
-	
+	if(!EventsTable__[StrEvent__, table]:exists("testFunc__"))
+	{
+		StrEvent__(EventsTable__[StrEvent__, table]:toArray()) # Passes registered callbacks to event
+	}else{
+		"event_Generic__"(StrEvent__, EventsTable__[StrEvent__, table]:toArray())
+	}
+
 	if(EventsTable__[StrEvent__, table]:exists("pollInterval")) { timer(StrEvent__, EventsTable__[StrEvent__, table]["pollInterval", number]) }
 }
 
@@ -14,7 +19,6 @@ if(fileClk()) {
 if(keyClk()) { # runOnKeys support, this will cause a critical error if runOnKeys is manually set without including the input library..
 	eventManualTriggerWithCallbacks("event_playerInput", EventsTable__["event_playerInput", table]:toArray())
 }
-if(egpQueueClk()) # This seems to be able to randomly break.....
-{
+if(egpQueueClk()) { # This seems to be able to randomly break.....
 	eventManualTriggerWithCallbacks("event_egpQueueUpdate", EventsTable__["event_egpQueueUpdate", table]:toArray())
 }

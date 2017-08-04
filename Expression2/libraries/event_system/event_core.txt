@@ -5,6 +5,38 @@
 #]#
 
 # Core functions
+#
+function string eventGetTestFunc(EventName:string)
+{
+    if(EventsTable__:exists(EventName)) { return EventsTable__[EventName, table]["testFunc__", string] }
+    return ""
+}
+# Internal event, handles undefined events with just a test function - don't register a callback directly to this. ;)
+function event_Generic__(EventName:string, Callbacks:array)
+{
+    local EventData = eventGetTestFunc(EventName)()[table]
+    if(EventData["hit", number])
+    {
+        for(I=1, Callbacks:count())
+        {
+            Callbacks[1, string](EventData)
+        }
+    }
+}
+
+# Add a callback to an event
+function registerCallback(EventName:string, CallbackName:string)
+{
+	if(EventsTable__:exists(EventName))
+	{
+		if(!invert(EventsTable__[EventName, table]):exists(CallbackName))
+		{
+			Event = EventsTable__[EventName, table]
+			Event:pushString(CallbackName)
+		}
+	}
+}
+# Register an actual event
 function registerEvent(EventName:string, PollInterval:number)
 {
 	if(!EventsTable__:exists(EventName))
@@ -12,6 +44,25 @@ function registerEvent(EventName:string, PollInterval:number)
 		EventsTable__[EventName, table] = table("pollInterval" = PollInterval)
 		timer(EventName, PollInterval)
 	}
+}
+# Shortcut to registering an event and adding a callback
+function registerEvent(EventName:string, PollInterval:number, Callback:string)
+{
+	registerEvent(EventName, PollInterval)
+	registerCallback(EventName, Callback)
+}
+function registerEventTest(EventName:string, PollInterval:number, EventTestFunc:string)
+{
+    if(!EventsTable__:exists(EventTestFunc))
+    {
+        EventsTable__[EventName, table] = table("pollInterval" = PollInterval, "testFunc__" = EventTestFunc)
+    		  timer(EventName, PollInterval)
+    }
+}
+function registerEventTest(EventName:string, PollInterval:number, EventTestFunc:string, Callback:string)
+{
+    registerEventTest(EventName, PollInterval, EventTestFunc)
+    registerCallback(EventName, Callback)
 }
 function registerManualEvent(EventName:string)
 {
@@ -26,27 +77,6 @@ function unregisterEvent(EventName:string)
 	{
 		EventsTable__:remove(EventName)
 		stoptimer(EventName)
-	}
-}
-function registerCallback(EventName:string, CallbackName:string)
-{
-	if(EventsTable__:exists(EventName))
-	{
-		local Found = 0
-		for(I=1, EventsTable__[EventName, table]:count())
-		{
-			if(EventsTable__[EventName, table][I, string] == CallbackName)
-			{
-				print("[ERROR]: Found duplicate callback on registerCallback call, ignoring.")
-				Found = 1
-				break
-			}
-		}
-		if(!Found)
-		{
-			Event = EventsTable__[EventName, table]
-			Event:pushString(CallbackName)
-		}
 	}
 }
 function unregisterCallback(EventName:string, CallbackName:string)
@@ -103,17 +133,6 @@ function eventManualTriggerWithCallbacks(EventName:string, CallbacksArray:array)
 }
 
 # Misc functions
-function registerEvent(EventName:string, PollInterval:number, Callback:string)
-{
-	if(!EventsTable__:exists(EventName))
-	{
-		EventsTable__[EventName, table] = table("pollInterval" = PollInterval)
-		timer(EventName, PollInterval)
-		registerCallback(EventName, Callback)
-	}else{
-		registerCallback(EventName, Callback)
-	}
-}
 
 # Polling function, it's required you call this outside your if(first()) code section to make the event system work
 function eventPoll()
@@ -121,7 +140,7 @@ function eventPoll()
 	if(EventsTable__:exists(clkName())) {
 		local StrEvent__ = clkName()
 		StrEvent__(EventsTable__[StrEvent__, table]:toArray()) # Passes registered callbacks to event
-		
+
 		if(EventsTable__[StrEvent__, table]:exists("pollInterval")) { timer(StrEvent__, EventsTable__[StrEvent__, table]["pollInterval", number]) }
 	}
 	if(chatClk() & eventIsRegistered("event_playerChat")) { # runOnChat support
