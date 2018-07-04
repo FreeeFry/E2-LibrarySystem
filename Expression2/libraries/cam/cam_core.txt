@@ -55,6 +55,8 @@ function number camlib_setActive(CamID:string, ActiveState)
 	if(!CAMLIB_Data__:exists(CamID)) { return 0} # No camera with that ID exists
 
 	CAMLIB_Data__[CamID, table]["cam", wirelink]["Activated", number] = ActiveState
+
+	return 1
 }
 
 # Helper function to get current "zoom" mode
@@ -153,7 +155,7 @@ function number camlib_setMode(CamID:string, ModeID:string)
 	if(ModeData:exists("zoomlevels")) { camlib_setZoom(CamID, ModeID, ModeData["currentzoom", number]) }
 	return 1
 }
-# Sets the current camera mdoe
+# Sets the current camera mode
 function number camlib_addMode(CamID:string, ModeID:string, ModeData:table)
 {
 	if(!CAMLIB_Data__:exists(CamID)) { return 0} # No camera with that ID exists
@@ -245,7 +247,6 @@ function vector camlib_getEyeTrace(CamID:string, ModeID:string, Player:entity)
 	local Trace = rangerOffset(999999, LocalPos["ent", entity]:toWorld(LocalPos["pos", vector]), Dir)
 
 	return Trace:pos()
-
 }
 function vector camlib_getEyeTrace(CamID:string, Player:entity) { return camlib_getEyeTrace(CamID, CAMLIB_Data__[CamID, table]["currentmode", string], Player) }
 function vector camlib_getEyeTrace(CamID:string) { return camlib_getEyeTrace(CamID, CAMLIB_Data__[CamID, table]["currentmode", string], noentity()) } # Support no player specified, gets output from camera instead.

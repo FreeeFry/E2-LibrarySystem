@@ -11,41 +11,33 @@
 # This is required.
 #include "libraries/tank/tank_core"
 
-# Events
-function event_inputUpdate(Callbacks:array)
+# This is a callback that makes sure the mobility side has up to date player input
+function tank_driverInput__(Player:entity, Key:string, State:number)
 {
-	if(InputData__:exists("source"))
-	{
-		local POD = InputData__["source", wirelink]
-		InputData__["W", number] = POD["W", number]
-		InputData__["A", number] = POD["A", number]
-		InputData__["S", number] = POD["S", number]
-		InputData__["D", number] = POD["D", number]
-		InputData__["Space", number] = POD["Space", number]
-		InputData__["speed", number] = Base__:vel():length()
-	}	
+	InputData__[Key, number] = State
 }
 function event_mobilityUpdate(Callbacks:array)
 {
-	local W = InputData__["W", number]
-	local A = InputData__["A", number]
-	local S = InputData__["S", number]
-	local D = InputData__["D", number]
-	local Space = InputData__["Space", number]
-	
+	InputData__["speed", number] = Base__:vel():length() # Store this here, used outside this function for detecting if the tank is moving.
+	local Keymap = InputData__["keymap", table]
+	local Forward = InputData__[Keymap["forward", string], number]
+	local Left = InputData__[Keymap["left", string], number]
+	local Reverse = InputData__[Keymap["reverse", string], number]
+	local Right = InputData__[Keymap["right", string], number]
+	local SteerMode = InputData__[Keymap["steerswitch", string], number]
+
 	local LGearbox = LGearbox__
 	local RGearbox = RGearbox__
-	local Speed = InputData__["speed", number]
-	
+
 	LGearbox:acfClutchLeft(MinClutch__)
 	LGearbox:acfClutchRight(MinClutch__)
 	RGearbox:acfClutchLeft(MinClutch__)
 	RGearbox:acfClutchRight(MinClutch__)
 
-	local LGear = (W & !A & !D ? 1 : (S & !A & !D ? 2 : (D ? 1 : (A ? 2 : 0))))
-	local RGear = (W & !A & !D ? 1 : (S & !A & !D ? 2 : (D ? 2 : (A ? 1 : 0))))
+	local LGear = (Forward & !Left & !Right ? 1 : (Reverse & !Left & !Right ? 2 : (Right ? 1 : (Left ? 2 : 0))))
+	local RGear = (Forward & !Left & !Right ? 1 : (Reverse & !Left & !Right ? 2 : (Right ? 2 : (Left ? 1 : 0))))
 
-	Throttle = (W | S ? MaxThrottle__ : (A | D ? MaxThrottle__ :  IdleThrottle__))
+	Throttle = (Forward | Reverse ? MaxThrottle__ : (Left | Right ? MaxThrottle__ :  IdleThrottle__))
 	for(I=1, Engines__:count())
 	{
 		Engines__[I, entity]:acfThrottle(Throttle)
@@ -54,35 +46,35 @@ function event_mobilityUpdate(Callbacks:array)
 	LGearbox:acfShift(LGear)
 	RGearbox:acfShift(RGear)
 
-	LGearbox:acfClutchLeft((A | D ? MaxClutch__ : MinClutch__))
-	RGearbox:acfClutchRight((A | D ? MaxClutch__ : MinClutch__))
-	
+	LGearbox:acfClutchLeft((Left | Right ? MaxClutch__ : MinClutch__))
+	RGearbox:acfClutchRight((Left | Right ? MaxClutch__ : MinClutch__))
+
 	LGearbox:acfBrake(0)
 	RGearbox:acfBrake(0)
-	
-	if(A | D)
+
+	if(Left | Right)
 	{
-		if(!Space)
+		if(!SteerMode)
 		{
-			if(S)
+			if(Reverse)
 			{
-				LGearbox:acfClutchRight((D ? MaxClutch__ : MinClutch__))
-				LGearbox:acfBrakeRight((D ? BrakeForce__*3 : 0))
-				RGearbox:acfClutchLeft((A ? MaxClutch__ : MinClutch__))
-				RGearbox:acfBrakeLeft((A ? BrakeForce__*3 : 0))
+				LGearbox:acfClutchRight((Right ? MaxClutch__ : MinClutch__))
+				LGearbox:acfBrakeRight((Right ? BrakeForce__*3 : 0))
+				RGearbox:acfClutchLeft((Left ? MaxClutch__ : MinClutch__))
+				RGearbox:acfBrakeLeft((Left ? BrakeForce__*3 : 0))
 			} else {
-				LGearbox:acfClutchRight((A ? MaxClutch__ : MinClutch__))
-				LGearbox:acfBrakeRight((A ? BrakeForce__*3 : 0))
-				RGearbox:acfClutchLeft((D ? MaxClutch__ : MinClutch__))
-				RGearbox:acfBrakeLeft((D ? BrakeForce__*3 : 0))
+				LGearbox:acfClutchRight((Left ? MaxClutch__ : MinClutch__))
+				LGearbox:acfBrakeRight((Left ? BrakeForce__*3 : 0))
+				RGearbox:acfClutchLeft((Right ? MaxClutch__ : MinClutch__))
+				RGearbox:acfBrakeLeft((Right ? BrakeForce__*3 : 0))
 			}
 		}
-	} elseif(!W & !S) {
+	} elseif(!Forward & !Reverse) {
 		LGearbox:acfBrake(BrakeForce__*1.5)
 		RGearbox:acfBrake(BrakeForce__*1.5)
 	}
 }
-function event_tankMove(Callbacks:array) # Requires event_inputUpdate for getting current velocity.
+function event_tankMove(Callbacks:array)
 {
 	if(InputData__["speed", number] > 0)
 	{
@@ -118,8 +110,12 @@ function tanklib_setEngineActive(ActiveState:number)
 		Engines__[I, entity]:acfActive(ActiveState)
 	}
 }
-function tanklib_setInputSource(Wirelink:wirelink)
+function tanklib_setInputSource(Player:entity)
 {
-	if(!Wirelink:entity():isValid()) { return }
-	InputData__["source", wirelink] = Wirelink
+	inputRegisterSource("tankdriver", Player)
+	registerCallback("event_playerInput", "tank_driverInput__")
+}
+function tanklib_unsetInputSource()
+{
+	inputUnregisterSource("tankdriver")
 }

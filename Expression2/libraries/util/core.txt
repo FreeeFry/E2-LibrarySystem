@@ -1,4 +1,5 @@
 @persist [UTIL_ParentEntsFinderData__]:table
+@persist [UTIL_ParentedEntsFinderData__]:table
 @persist [UTIL_TraceData__]:table
 
 # Required.
@@ -9,7 +10,8 @@ function event_utilParentFinderFilter(Callbacks:array)
 	if(!UTIL_ParentEntsFinderData__:exists("filtered")) { UTIL_ParentEntsFinderData__["filtered", array] = array() }
 	#print(format("Remaining to filter: %i", UTIL_ParentEntsFinderData__["unfiltered", array]:count()))
 	local Ent = UTIL_ParentEntsFinderData__["unfiltered", array]:popEntity()
-	if(Ent:type() == UTIL_ParentEntsFinderData__["class", string] & Ent:parent() == UTIL_ParentEntsFinderData__["parent", entity])
+	local Type = Ent:type()
+	if(Type != "gmod_wire_hologram" & (UTIL_ParentEntsFinderData__["class", string] == "*" | Type == UTIL_ParentEntsFinderData__["class", string]) & Ent:parent() == UTIL_ParentEntsFinderData__["parent", entity])
 	{
 		UTIL_ParentEntsFinderData__["filtered", array]:pushEntity(Ent)
 	}
@@ -22,7 +24,6 @@ function event_utilParentFinderFilter(Callbacks:array)
 
 function findEntsByParent(ReferenceEntity:entity, Class:string, Callback:string)
 {
-	findIncludeClass("prop_physics")
 	findInSphere(ReferenceEntity:pos(), 500)
 	UTIL_ParentEntsFinderData__["unfiltered", array] = findToArray()
 	UTIL_ParentEntsFinderData__["parent", entity] = ReferenceEntity
@@ -30,10 +31,39 @@ function findEntsByParent(ReferenceEntity:entity, Class:string, Callback:string)
 	registerEvent("event_utilParentFinderFilter", 10, Callback)
 }
 
+function event_utilParentedFinderFilter(Callbacks:array)
+{
+	if(!UTIL_ParentedEntsFinderData__:exists("filtered")) { UTIL_ParentedEntsFinderData__["filtered", array] = array() }
+
+	local Ent = UTIL_ParentedEntsFinderData__["unfiltered", array]:popEntity()
+
+	local Type = Ent:type()
+
+	if(UTIL_ParentedEntsFinderData__["class", string] == "*")
+	{
+		UTIL_ParentedEntsFinderData__["filtered", array]:pushEntity(Ent)
+	}elseif(Type == UTIL_ParentedEntsFinderData__["class", string])
+	{
+		UTIL_ParentedEntsFinderData__["filtered", array]:pushEntity(Ent)
+	}
+	if(!UTIL_ParentedEntsFinderData__["unfiltered", array]:count())
+	{
+		Callbacks[1, string](UTIL_ParentedEntsFinderData__["filtered", array])
+		unregisterEvent("event_utilParentedFinderFilter")
+	}
+}
+function findParentedEnts(Position:vector, Class:string, Callback:string)
+{
+	findInSphere(Position, 500)
+	UTIL_ParentedEntsFinderData__["unfiltered", array] = findToArray()
+	UTIL_ParentedEntsFinderData__["class", string] = Class
+	registerEvent("event_utilParentedFinderFilter", 10, Callback)
+}, function findParentedEnts(Position:vector, Class:string, Callback:string, Player:entity) { findIncludePlayerProps(Player), findParentedEnts(Position, Class, Callback) }
+
 function ranger traceNormal(Position:vector, Direction:vector, TraceID:string)
 {
 	local TraceData = UTIL_TraceData__[TraceID, table]
-	
+
 	if(curtime() >= TraceData["nexttrace", number])
 	{
 		local Ranger = rangerOffset(50000, Position, Direction)

@@ -1,9 +1,15 @@
-@persist LastPosition:table
+@persist [LastPosition, PlayerTable]:table
+@persist [Parent, Self]:entity
  
 if(first())
 {
     #include "libraries/event_system/event_core"
-   
+    
+    Self = entity()
+    Parent = Self
+    
+    PlayerTable["NextHID", number] = 1
+       
     # Callback definition - here we actually have our code that reacts to the event.
     function playerMoved(EventData:table)
     {
@@ -11,7 +17,37 @@ if(first())
         for(I=1, Players:count())
         {
             local Player = Players[I, entity]
-            print(format("%s moved!", Player))
+            local SteamID = Player:steamID()
+            if(!PlayerTable:exists(SteamID))
+            {
+                local HID = PlayerTable["NextHID", number]
+                local Holo = holoCreate(HID)
+                local Ang = (Self:pos()-Player:pos()):toAngle()
+                
+                holoCreate(HID)
+                holoPos(HID, Self:pos())
+                holoScale(HID, vec(5, 0.01, 0.01))
+                holoAng(HID, Ang)
+                holoColor(HID, vec(255, 128, 0))
+                holoDisableShading(HID, 1)
+                holoParent(HID, Parent)
+                holoClipEnabled(HID, 1)
+                holoClip(HID, vec(), vec(-1, 0, 0), 0)
+                
+                PlayerTable[SteamID, table] = table(
+                    "hid" = HID,
+                    "holo" = Holo,
+                    "ply" = Player
+                )
+                PlayerTable["NextHID", number] = PlayerTable["NextHID", number] + 1
+            }else{
+                local PlyTab = PlayerTable[SteamID, table]
+                local HID = PlyTab["hid", number]
+                local Holo = PlyTab["holo", entity]
+                local Ang = (Self:pos()-Player:pos()):toAngle()
+                holoAng(HID, Ang)
+            }
+            #print(format("%s moved!", Player))
         }
     }
     # Event test definition - here we determine if the event is supposed to "trigger" and return some data to go along with the event.
@@ -25,7 +61,7 @@ if(first())
             local SteamID = Player:steamID()
             if(LastPosition:exists(SteamID))
             {
-                if(LastPosition[SteamID, vector]:distance(Player:pos()) > 5)
+                if(LastPosition[SteamID, vector]:distance(Player:pos()) > 1)
                 {
                     Ret["hit", number] = 1 # If this is set, the callbacks will be called with the returned table.
                     Ret["players", table]:pushEntity(Player)
@@ -35,8 +71,36 @@ if(first())
         }
         return Ret
     }
-    # Nowdays we don't need to define an event function, just a function that determines if th event should fire, and an optional callback.
-   registerEventTest("event_playerMove", 250, "test_playerMove", "playerMoved")
+    # Nowdays we don't need to define an event function, just a function that determines if the event should fire, and an optional callback.
+    registerEventTest("event_playerMove", 250, "test_playerMove", "playerMoved")
+    
+    function playerCleanup(EventData:table)
+    {
+        local Invalids = EventData["steamids", array]
+        for(I=1, Invalids:count())
+        {
+            print(format("Cleaning invalid player at index %i", I))
+            local Index = Invalids[I, string]
+            local PlyTab = PlayerTable[Index, table]
+            holoDelete(PlyTab["hid", number])
+            PlayerTable:remove(Index)
+        }
+    }
+    function table test_playerInvalid()
+    {
+        local Ret = table("hit" = 0, "steamids" = array())
+        local Players = players()
+        foreach(SteamID, Player:entity = PlayerTable)
+        {
+            if(!Player:isValid())
+            {
+                Ret["hit", number] = 1
+                Ret["steamids", array]:pushString(SteamID)
+            }
+        }
+        return Ret
+    }
+    registerEventTest("event_playerInvalid", 500, "test_playerInvalid", "playerCleanup")
    
 }elseif(dupefinished()){reset()}
 #include "libraries/event_system/event_polling"

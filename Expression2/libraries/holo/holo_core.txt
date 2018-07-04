@@ -16,7 +16,7 @@ function holoSpawnerLoadedFile__(Filename:string, State:number) # Internal callb
 	local SaveData = vonDecodeTable(fileRead())
 	if(!SaveData:exists("holospawnertag__")) { hint(Filename + " was not a valid holoSpawner save file!", 10), return }
 	SaveData:remove("holospawnertag__")
-	
+
 	#print("Shit happenin yo:", SaveData:count())
 	for(I=1, SaveData:count())
 	{
@@ -53,7 +53,7 @@ function event_codegeneratorGatherData(Callbacks:array)
 	if(!HOLOLIB_CodeGeneratorData__:exists("generated")) { HOLOLIB_CodeGeneratorData__["generated", string] = "" }
 	#print(format("Remaining to gather: %i", HOLOLIB_CodeGeneratorData__["ents", array]:count()))
 	local Ent = HOLOLIB_CodeGeneratorData__["ents", array]:popEntity()
-	
+
 	local ID = HOLOLIB_CodeGeneratorData__["index", number]
 	local EntData = holoSpawnerGetEntTable(HOLOLIB_CodeGeneratorData__["reference", entity], Ent, HOLOLIB_CodeGeneratorData__["index", number])
 	local NL = format("\n")
@@ -68,7 +68,7 @@ function event_codegeneratorGatherData(Callbacks:array)
 		"\"posl\" = table(vec(" + round(LocalPos:x(),Accuracy) + "," + round(LocalPos:y(),Accuracy) + "," + round(LocalPos:z(),Accuracy) +"), GeneratorReference)," + NL +
 		"\"anglel\" = table(ang(" + round(LocalAng:pitch(),Accuracy) + "," + round(LocalAng:yaw(),Accuracy) + "," + round(LocalAng:roll(),Accuracy) +"), GeneratorReference))" + NL + ")" + NL + NL
 	HOLOLIB_CodeGeneratorData__["generated", string] = HOLOLIB_CodeGeneratorData__["generated", string] + CodeStr
-	
+
 	HOLOLIB_CodeGeneratorData__["index", number] = HOLOLIB_CodeGeneratorData__["index", number] + 1
 	if(!HOLOLIB_CodeGeneratorData__["ents", array]:count())
 	{
@@ -95,10 +95,10 @@ function event_holoSpawn(Callbacks:array)
 	#print(HOLOLIB_HolosNotSpawned__[1, table]["id", number])
 	if(!HOLOLIB_HolosNotSpawned__:count()) { return }
 	if(!holoCanCreate()) { return }
-	
+
 	local HoloData = HOLOLIB_HolosNotSpawned__[1, table]
 	local ID = HoloData["id", number]
-	
+
 	local HoloEnt = noentity()
 	local Keys = array()
 	local Skip = 0
@@ -110,6 +110,17 @@ function event_holoSpawn(Callbacks:array)
 	{
 		HoloEnt = holoCreate(ID)
 		Keys = HoloData:keys()
+
+		if(HoloData:exists("model"))
+		{
+			holoModel(ID, HoloData["model", string])
+		}elseif(HoloData:exists("modelg"))
+		{
+			local ModelData__ = HoloData["modelg", table]
+			holoModel(ID, ModelData__["model", string])
+			holoBodygroup(ID, ModelData__["bodygroup", table]["group", number], ModelData__["bodygroup", table]["sub", number])
+		}
+		
 		for(I=1, Keys:count())
 		{
 			switch(Keys[I, string])
@@ -118,28 +129,28 @@ function event_holoSpawn(Callbacks:array)
 					holoPos(ID, HoloData["pos", vector])
 					break
 				case "posl",
-					if(HoloData["posl", table][2, entity]:isValid())
-					{
-						holoPos(ID, HoloData["posl", table][2, entity]:toWorld(HoloData["posl", table][1, vector]))
-					}
+					local Ent__ = HoloData["posl", table][2, entity]
+					if(!Ent__:isValid()) { Ent__ = holoEntity(HoloData["posl", table][2, number]) }
+					holoPos(ID, Ent__:toWorld(HoloData["posl", table][1, vector]))
+					break
+				case "skin",
+					holoSkin(ID, HoloData["skin", number])
 					break
 				case "angle",
 					holoAng(ID, HoloData["angle", angle])
 					break
 				case "anglel",
-					if(HoloData["anglel", table][2, entity]:isValid())
-					{
-						holoAng(ID, HoloData["anglel", table][2, entity]:toWorld(HoloData["anglel", table][1, angle]))
-					}
+					local Ent__ = HoloData["anglel", table][2, entity]
+					if(!Ent__:isValid()) { Ent__ = holoEntity(HoloData["anglel", table][2, number]) }
+					holoAng(ID, Ent__:toWorld(HoloData["anglel", table][1, angle]))
 					break
 				case "ang",
 					holoAng(ID, HoloData["ang", angle])
 					break
 				case "angl",
-					if(HoloData["angl", table][2, entity]:isValid())
-					{
-						holoAng(ID, HoloData["angl", table][2, entity]:toWorld(HoloData["angl", table][1, angle]))
-					}
+					local Ent__ = HoloData["angl", table][2, entity]
+					if(!Ent__:isValid()) { Ent__ = holoEntity(HoloData["angl", table][2, number]) }
+					holoAng(ID, Ent__:toWorld(HoloData["angl", table][1, angle]))
 					break
 				case "scale",
 					holoScale(ID, HoloData["scale", vector])
@@ -158,13 +169,6 @@ function event_holoSpawn(Callbacks:array)
 					break
 				case "disableshading",
 					holoDisableShading(ID, HoloData["disableshading", number])
-				case "model",
-					holoModel(ID, HoloData["model", string])
-					break
-				case "modelg",
-					local ModelData__ = HoloData["modelg", table]
-					holoModel(ID, ModelData__["model", string])
-					holoBodygroup(ID, ModelData__["bodygroup", table]["group", number], ModelData__["bodygroup", table]["sub", number])
 					break
 				case "parent",
 					holoParent(ID, HoloData["parent", entity])
@@ -175,10 +179,10 @@ function event_holoSpawn(Callbacks:array)
 			}
 		}
 	}
-	
+
 	HOLOLIB_HolosNotSpawned__:remove(1)
 	HOLOLIB_HoloIdentifiers__:remove(ID)
-	
+
 	if(!Skip)
 	{
 		for(I=1, Callbacks:count())
@@ -226,11 +230,11 @@ function event_holoSpawnerFilterCustom__(Callbacks:array) # Internal event only,
 function event_holoAnimate(Callbacks:array)
 {
 	if(HOLOLIB_AnimationQueue__:ncount() < 1) { return }
-	
+
 	local Index = HOLOLIB_AnimationQueue__[1, table]["index", number]
 	local AnimationData = HOLOLIB_AnimationQueue__[1, table]["data", table]
 	local Identifier = AnimationData["id", string]
-	
+
 	if(AnimationData["stepsize", table][1, string] == "angle")
 	{
 		holoAng(Index, holoEntity(Index):toWorld(AnimationData["stepsize", table][2, angle]))
@@ -242,7 +246,7 @@ function event_holoAnimate(Callbacks:array)
 		holoScale(Index, holoScale(Index)+AnimationData["stepsize", table][2, vector])
 	}
 	HOLOLIB_AnimationStep__ += 1
-	
+
 	if(HOLOLIB_AnimationStep__ > AnimationData["steps", number])
 	{
 		HOLOLIB_AnimationQueue__:remove(1)
@@ -279,32 +283,32 @@ function number holoSpawnerLoadFromFile(Filename:string, ParentEntity:entity)
 {
 	if(isSinglePlayer()) { error("Files cannot be loaded in singleplayer :(") }
 	if(!fileCanLoad()) { return 0}
-	
+
 	HOLOLIB_SaveData__ = table("filename" = Filename, "parent" = ParentEntity)
 	registerCallback("event_fileUploaded", "holoSpawnerLoadedFile__")
 	filelib_Loadfile(Filename)
-	
+
 	return 1
 }
 function number holoSpawnerLoadFromFile(Filename:string, ParentEntity:entity, StartingIndex:number)
 {
 	if(isSinglePlayer()) { error("Files cannot be loaded in singleplayer :(") }
 	if(!fileCanLoad()) { return 0}
-	
+
 	HOLOLIB_SaveData__ = table("filename" = Filename, "parent" = ParentEntity)
 	HOLOLIB_LoadFileIndexOffset = StartingIndex
 	registerCallback("event_fileUploaded", "holoSpawnerLoadedFile__")
 	filelib_Loadfile(Filename)
-	
+
 	return 1
 }
 function number holoSpawnerLoadToTable(Filename:string, Callback:string)
 {
 	if(isSinglePlayer()) { error("Files cannot be loaded in singleplayer :(") }
 	if(!fileCanLoad()) { return 0}
-	
+
 	HOLOLIB_LoadToTableCallback__ = Callback
-	
+
 	registerCallback("event_fileUploaded", "holoSpawnerLoadedFileToTable__")
 	filelib_Loadfile(Filename)
 }
@@ -313,7 +317,7 @@ function holoSpawnerLoadedFileToTable__(Filename:string, State:number) # Interna
 	local SaveData = vonDecodeTable(fileRead())
 	if(!SaveData:exists("holospawnertag__")) { hint(Filename + " was not a valid holoSpawner save file!", 10), return }
 	SaveData:remove("holospawnertag__")
-	
+
 	unregisterCallback("event_fileUploaded", "holoSpawnerLoadedFileToTable__")
 	HOLOLIB_LoadToTableCallback__(SaveData)
 }
@@ -321,7 +325,7 @@ function holoSpawnerLoadedFileToTable__(Filename:string, State:number) # Interna
 function holoSpawnerPropSave(Filename:string, ParentEnt:entity, BaseEnt:entity)
 {
 	if(Filename:sub(Filename:length()-3):lower() != ".txt") { hint("Invalid file name(" + Filename + "). File names must end in .txt", 10), return }
-	
+
 	findIncludeClass("prop_physics")
 	local EntsCount = findInSphere(ParentEnt:pos(), 500)
 	HOLOLIB_SaveData__ = table("filename" = Filename, "index" = EntsCount, "ents" = findToArray(), "base" = BaseEnt, "parent" = ParentEnt, "filtered" = table())
@@ -330,7 +334,7 @@ function holoSpawnerPropSave(Filename:string, ParentEnt:entity, BaseEnt:entity)
 function holoSpawnerPropSave(Filename:string, ParentEnt:entity, BaseEnt:entity, FilterFunction:string)
 {
 	if(Filename:sub(Filename:length()-3):lower() != ".txt") { hint("Invalid file name(" + Filename + "). File names must end in .txt", 10), return }
-	
+
 	findIncludeClass("prop_physics")
 	local EntsCount = findInSphere(ParentEnt:pos(), 500)
 	HOLOLIB_SaveData__ = table("filename" = Filename, "index" = EntsCount, "ents" = findToArray(), "base" = BaseEnt, "parent" = ParentEnt, "filtered" = table())
@@ -351,11 +355,11 @@ function holoSpawnerHoloSave(Filename:string, ParentEnt:entity, HoloTable:table)
 	hint("Saved file: " + Filename, 5)
 }
 function number holoQueueAnimation(HoloIndex:number, Steps:number, AnimationData:table)
-{        
+{
 	local AnimationData_ = table()
 	local Keys = AnimationData:keys()
 	local ValidType = 0
-	
+
 	for(I=1, Keys:count())
 	{
 		if(Keys[I, string] == "angle")

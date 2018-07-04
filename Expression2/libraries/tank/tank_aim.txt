@@ -19,7 +19,30 @@
 # Events
 function event_gunUpdate(Callbacks:array)
 {
-    Gun__:applyAngForce((Gun__:toLocal(Base__:toWorld(clamp(Base__:toLocal(Gun__:toWorld(clamp(Gun__:toLocal((AimCurrent__ - Gun__:pos()):toAngle()),-AimSpeed__, AimSpeed__))),ang(AimLimits__[1, number],-AimLimits__[3, number],-1),ang(AimLimits__[2, number],AimLimits__[3, number],1)))) * 250 - Gun__:angVel() * 30) * GunInertia__)
+  Gun__:applyAngForce(
+  (
+    Gun__:toLocal(
+      Base__:toWorld(
+        clamp(
+          Base__:toLocal(
+            Gun__:toWorld(
+              clamp(
+                Gun__:toLocal(
+                  (
+                    AimCurrent__ - Gun__:pos()
+                  ):toAngle()
+                ),-AimSpeed__, AimSpeed__)
+              )
+            ),ang(
+              AimLimits__[1, number],-AimLimits__[3, number],-1
+            ),ang(
+              AimLimits__[2, number],AimLimits__[3, number],1
+            )
+          )
+        )
+      ) * 250 - Gun__:angVel() * 30
+    ) * GunInertia__
+  )
 }
 function event_camUpdate(Callbacks:array)
 {
@@ -27,9 +50,7 @@ function event_camUpdate(Callbacks:array)
 	{
 		local Cam = CameraData__["cam", wirelink]
 		CameraData__["eye", vector] = Cam["CamDir", vector]
-		local CalculatedPos = (CameraData__["parent", entity]:isValid() ? CameraData__["parent", entity]:toWorld(CameraData__["pos", vector]) : CameraData__["pos", vector])
-		CameraData__["eyeTrace", ranger] = rangerOffset(50000, CalculatedPos, CameraData__["eye", vector])
-		#Cam["Position", vector] = CameraData__["pos", vector]
+		CameraData__["eyeTrace", ranger] = rangerOffset(50000, Cam["CamPos", vector], CameraData__["eye", vector])
 	}
 }
 function event_TurretMove(Callbacks:array)

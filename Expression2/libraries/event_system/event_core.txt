@@ -95,6 +95,20 @@ function unregisterCallback(EventName:string, CallbackName:string)
 }
 
 # Misc functions:
+function eventEnablePerformanceMonitor(State:number)
+{
+  if(State)
+  {
+    if(!EventsTable__:exists("performanceMonitor__"))
+    {
+      EventsTable__["performanceMonitor__", table] = table()
+    }
+  }else{ EventsTable__:remove("performanceMonitor__") }
+}
+function table eventGetPerformance()
+{
+  return EventsTable__["performanceMonitor__", table]:clone()
+}
 function number eventIsRegistered(EventName:string)
 {
 	return(EventsTable__:exists(EventName))

@@ -17,7 +17,7 @@
 #include "libraries/event_system/event_core"
 #include "libraries/input/input_core"
 
-# Initialization 
+# Initialization
 function carlib_Init(InitTable:table)
 {
 	# Defaults
@@ -28,10 +28,10 @@ function carlib_Init(InitTable:table)
 	CARLIB_EnginePowerband__ = array(1000, 2000)
 	CARLIB_CurrentGear__ = 1
 	CARLIB_MaxGears__ = 4
-	
-	
+
+
 	# Setup phase
-    if(InitTable:exists("base")) { CARLIB_Base__ = InitTable["base", entity] }
+	if(InitTable:exists("base")) { CARLIB_Base__ = InitTable["base", entity] }
 	if(InitTable:exists("engines"))
 	{
 		CARLIB_Engines__ = InitTable["engines", array]
@@ -69,14 +69,14 @@ function event_carlibUpdate(Callbacks:array)
 	local Boost = CARLIB_InputData__[CARLIB_KeyMapping__["boost", string], number]
 	local Brake = CARLIB_InputData__[CARLIB_KeyMapping__["brake", string], number]
 	local Handbrake = CARLIB_InputData__[CARLIB_KeyMapping__["handbrake", string], number]
-	
+
 	local Speed = CARLIB_Base__:vel():length()
 	local RPM = CARLIB_Engines__[1, entity]:acfRPM()
-	
+
 	if(Reverse) { CARLIB_CurrentGear__ = CARLIB_MaxGears__ }
 	if(Forward && (CARLIB_CurrentGear__ == CARLIB_MaxGears__ || CARLIB_CurrentGear__ == 0)) { CARLIB_CurrentGear__ = 1 }
 	if(Brake || Handbrake) { CARLIB_CurrentGear__ = (Reverse ?  CARLIB_MaxGears__ : 1), CARLIB_LastSwitch__ = curtime()}
-	
+
 	if(!Brake && !CARLIB_GearLocked__)
 	{
 		if(Forward && RPM > CARLIB_EnginePowerband__[2, number] && CARLIB_CurrentGear__ < CARLIB_MaxGears__-1 && curtime() >= CARLIB_LastSwitch__)
@@ -98,7 +98,7 @@ function event_carlibUpdate(Callbacks:array)
 
 	CARLIB_Gearbox__:acfShift(CARLIB_CurrentGear__)
 	CARLIB_Gearbox__:acfClutch((Brake | Handbrake ? 100 : 0))
-	
+
 	CARLIB_FrontDiff__:acfBrake((Brake ? CARLIB_BrakeRatio__[1, number] : 0))
 	CARLIB_RearDiff__:acfBrake((Brake | Handbrake ? CARLIB_BrakeRatio__[2, number] : 0))
 }
@@ -140,4 +140,8 @@ function carlib_clearDriver()
 function string carlib_lookupKeymapping(Feature:string)
 {
 	return CARLIB_KeyMapping__[Feature, string]
+}
+function carlib_setKeymap(Keymap:table)
+{
+	CARLIB_KeyMapping__ = Keymap
 }

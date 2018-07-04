@@ -14,8 +14,8 @@ function carlib_InitSteering(InitTable:table)
 	CARLIB_SteerRatios__ = array(1)
 	CARLIB_SteerSpeeds__ = array(0.1, 0.2)
 	CARLIB_SteerAxis__ = ang(0, 1, 0)
-	CARLIB_SpeedDampingFactor__ = 1
-	
+	CARLIB_SpeedDampingFactor__ = -1
+
 	if(InitTable:exists("base")) { CARLIB_SteerBase__ = InitTable["base", entity] }
 	if(InitTable:exists("slaves"))
 	{
@@ -31,6 +31,7 @@ function carlib_InitSteering(InitTable:table)
 	if(InitTable:exists("axis")) { CARLIB_SteerAxis__ = InitTable["axis", angle] }
 	if(InitTable:exists("parent")) { CARLIB_SteerParent__ = InitTable["parent", array] }
 	if(InitTable:exists("damping")) { CARLIB_SpeedDampingFactor__ = InitTable["damping", number] }
+	if(InitTable:exists("keymap")) { CARLIB_KeyMapping__ = InitTable["keymap", table] }
 }
 
 # Events
@@ -38,16 +39,29 @@ function event_steerUpdate(Callbacks:array) # This doesn't call any callbacks, s
 {
 	local Left = CARLIB_InputData__[CARLIB_KeyMapping__["left", string], number]
 	local Right = CARLIB_InputData__[CARLIB_KeyMapping__["right", string], number]
-	local VelFactor = clamp(CARLIB_SpeedDampingFactor__ - (toUnit("km/h", CARLIB_SteerBase__:vel():length())/180), 0.1, 1)
+	local VelFactor = (CARLIB_SpeedDampingFactor__ != -1 ? clamp(CARLIB_SpeedDampingFactor__ - (toUnit("km/h", CARLIB_SteerBase__:vel():length())/180), 0.0001, 1) : 1)
 	if(Left || Right) { CARLIB_SteerAccum__ += ((Left ? CARLIB_SteerMax__*VelFactor : -CARLIB_SteerMax__*VelFactor)-CARLIB_SteerAccum__)*CARLIB_SteerSpeeds__[1, number] } else { CARLIB_SteerAccum__ -= CARLIB_SteerAccum__*CARLIB_SteerSpeeds__[2, number] }
-	
+
 	local Frozen = CARLIB_SteerBase__:isFrozen()
 	for(I=1, CARLIB_SteerSlaves__:count())
 	{
 		local Ent = CARLIB_SteerSlaves__[I, entity]
 		local Ratio = CARLIB_SteerRatios__[I, number]
-		Ent:setAng(CARLIB_SteerBase__:toWorld(CARLIB_SteerAccum__*CARLIB_SteerRatios__[I, number]*CARLIB_SteerAxis__))
+		local Axis = CARLIB_SteerAxis__
+		Ent:setAng(CARLIB_SteerBase__:toWorld(CARLIB_SteerAccum__*Ratio*Axis))
 		Ent:propFreeze(1)
 		if(!Frozen & CARLIB_SteerParent__[1, entity]:isValid()) { Ent:setPos(CARLIB_SteerParent__[1, entity]:toWorld(CARLIB_SteerParent__[2, vector]))}
 	}
+}
+function carlib_setRatios(Ratios:array)
+{
+	if(Ratios:count() == CARLIB_SteerSlaves__:count()) { CARLIB_SteerRatios__ = Ratios}
+}
+function carlib_setMax(MaxSteer)
+{
+	CARLIB_SteerMax__ = MaxSteer
+}
+function carlib_setSpeed(Speed:array)
+{
+	if(Speed:count() == 2) { CARLIB_SteerSpeeds__ = Speed}
 }

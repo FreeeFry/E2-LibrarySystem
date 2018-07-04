@@ -9,8 +9,10 @@
 
 # Core event system functions.
 #include "libraries/event_system/event_core"
+# Input events used for driving
+#include "libraries/input/input_core"
 
-# Initialization 
+# Initialization
 function tanklib_Init(InitTable:table)
 {
 	AimInt__ = 50 							# 50ms default interval
@@ -20,13 +22,14 @@ function tanklib_Init(InitTable:table)
 	MaxClutch__ = 1
 	MinClutch__ = 0
 	AimLimits__ = array(-20, 10, 360)				# Elevation, Depression, Yaw
-	
-    if(InitTable:exists("base")) { Base__ = InitTable["base", entity] }
-    if(InitTable:exists("gun")) { Gun__ = InitTable["gun", entity] }
-	
-    AimSpeed__ = ang(clamp(50 - (Gun__:mass()/1000),0,10))	# Max rotation speed of gun
-    GunInertia__ = shiftL(ang(Gun__:inertia()))		# Gun inertia
-	
+	InputData__["keymap", table] = table("forward" = "w", "reverse" = "s", "left" = "a", "right" = "d", "steerswitch" = "space") # Default WASDSpace keymap
+
+  if(InitTable:exists("base")) { Base__ = InitTable["base", entity] }
+  if(InitTable:exists("gun")) { Gun__ = InitTable["gun", entity] }
+
+  AimSpeed__ = ang(clamp(50 - (Gun__:mass()/1000),0,10))	# Max rotation speed of gun
+  GunInertia__ = shiftL(ang(Gun__:inertia()))		# Gun inertia
+
 	if(InitTable:exists("engines")) { Engines__ = InitTable["engines", array] }
 	if(InitTable:exists("pod")) { InputData__["source", wirelink] = InitTable["pod", wirelink] }
 	if(InitTable:exists("brakeforce")) { BrakeForce__ = InitTable["brakeforce", number] }
@@ -34,14 +37,15 @@ function tanklib_Init(InitTable:table)
 	if(InitTable:exists("rgearbox")) { RGearbox__ = InitTable["rgearbox", entity] }
 	if(InitTable:exists("cvt")) { CVTGearbox__ = InitTable["cvt", entity] }
 	if(InitTable:exists("cam")) { CameraData__["cam", wirelink] = InitTable["cam", wirelink] }
+	if(InitTable:exists("keymap")) { InputData__["keymap", table]:merge(InitTable["keymap", table]) }
 }
 
 # Events
-function event_tanklibUpdate(Callbacks:array) # This you can use for any custom stuff, like HUDs, etc, isn't used for anything else.
+function event_tanklibUpdate(Callbacks:array) # This you can use for any custom stuff, like HUDs, etc, isn't used for anything else and runs on 1000ms interval.
 {
 	for(I=1, Callbacks:count())
 	{
 		local StrCallback = Callbacks[I, string]
 		StrCallback() # No parameters.
 	}
-}
+}, registerEvent("event_tanklibUpdate", 1000)

@@ -1,10 +1,23 @@
 if(EventsTable__:exists(clkName())) {
 	local StrEvent__ = clkName()
+	local MonitorPerformance__ = EventsTable__:exists("performanceMonitor__")
+	if(MonitorPerformance__)
+	{
+		if(!EventsTable__["performanceMonitor__", table]:exists(StrEvent__)){ EventsTable__["performanceMonitor__", table][StrEvent__, table] = table() }
+		EventsTable__["performanceMonitor__", table][StrEvent__, table]["opsbefore", number] = opcounter()
+		EventsTable__["performanceMonitor__", table][StrEvent__, table]["hit", number] = EventsTable__["performanceMonitor__", table][StrEvent__, table]["hit", number] + 1
+	}
 	if(!EventsTable__[StrEvent__, table]:exists("testFunc__"))
 	{
 		StrEvent__(EventsTable__[StrEvent__, table]:toArray()) # Passes registered callbacks to event
 	}else{
 		"event_Generic__"(StrEvent__, EventsTable__[StrEvent__, table]:toArray())
+	}
+	if(MonitorPerformance__)
+	{
+		EventsTable__["performanceMonitor__", table][StrEvent__, table]["opsafter", number] = opcounter()
+		EventsTable__["performanceMonitor__", table][StrEvent__, table]["usage", number] = (EventsTable__["performanceMonitor__", table][StrEvent__, table]["opsafter", number] - EventsTable__["performanceMonitor__", table][StrEvent__, table]["opsbefore", number])
+		EventsTable__["performanceMonitor__", table][StrEvent__, table]["totalops", number] = EventsTable__["performanceMonitor__", table][StrEvent__, table]["totalops", number] + EventsTable__["performanceMonitor__", table][StrEvent__, table]["usage", number]
 	}
 
 	if(EventsTable__[StrEvent__, table]:exists("pollInterval")) { timer(StrEvent__, EventsTable__[StrEvent__, table]["pollInterval", number]) }
