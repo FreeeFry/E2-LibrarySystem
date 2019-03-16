@@ -12,9 +12,10 @@ function carlib_InitSteering(InitTable:table)
 	# Defaults
 	CARLIB_SteerMax__ = 45
 	CARLIB_SteerRatios__ = array(1)
-	CARLIB_SteerSpeeds__ = array(0.1, 0.2)
+	CARLIB_SteerSpeeds__ = array(0.1, 0.2) # SteerSpeed, ReturnSpeed
 	CARLIB_SteerAxis__ = ang(0, 1, 0)
 	CARLIB_SpeedDampingFactor__ = -1
+	CARLIB_KeyMapping__ = table("left" = "a", "right" = "d")
 
 	if(InitTable:exists("base")) { CARLIB_SteerBase__ = InitTable["base", entity] }
 	if(InitTable:exists("slaves"))
@@ -31,7 +32,7 @@ function carlib_InitSteering(InitTable:table)
 	if(InitTable:exists("axis")) { CARLIB_SteerAxis__ = InitTable["axis", angle] }
 	if(InitTable:exists("parent")) { CARLIB_SteerParent__ = InitTable["parent", array] }
 	if(InitTable:exists("damping")) { CARLIB_SpeedDampingFactor__ = InitTable["damping", number] }
-	if(InitTable:exists("keymap")) { CARLIB_KeyMapping__ = InitTable["keymap", table] }
+	if(InitTable:exists("keymap")) { CARLIB_KeyMapping__ = CARLIB_KeyMapping__:merge(InitTable["keymap", table]) }
 }
 
 # Events

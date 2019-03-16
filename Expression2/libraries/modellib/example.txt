@@ -1,2 +1,0 @@
-#include "libraries/modellib/sprops"
-print(format("Model count loaded: %i", spropsGetModels("cuboids"):ncount()))
